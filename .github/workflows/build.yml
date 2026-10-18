@@ -5,10 +5,10 @@ name: Build
 # gives us downloadable bundles for manual QA.
 on:
   push:
-    branches: [main, develop, rust-version]
-    tags: ["v*"]
+    branches: [main, master, develop, rust-version]
+    tags: ["v*", "[0-9]+.[0-9]+.[0-9]+*"]
   pull_request:
-    branches: [main, develop, rust-version]
+    branches: [main, master, develop, rust-version]
 
 concurrency:
   group: build-${{ github.ref }}

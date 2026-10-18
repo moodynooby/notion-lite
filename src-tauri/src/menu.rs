@@ -248,10 +248,21 @@ pub fn create_main_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             }
             "toggle_dev_tools" => {
                 log::info!("Menu: Toggle Developer Tools");
-                if let Some(tab_id) = get_active_tab_id(app_handle) {
-                    if let Some(wv) = app_handle.get_webview(&tab_id) {
-                        let _ = wv.open_devtools();
+                #[cfg(feature = "devtools")]
+                {
+                    if let Some(tab_id) = get_active_tab_id(app_handle) {
+                        if let Some(wv) = app_handle.get_webview(&tab_id) {
+                            if wv.is_devtools_open() {
+                                wv.close_devtools();
+                            } else {
+                                wv.open_devtools();
+                            }
+                        }
                     }
+                }
+                #[cfg(not(feature = "devtools"))]
+                {
+                    log::info!("Developer tools are disabled in this build");
                 }
             }
             "check_updates" => {

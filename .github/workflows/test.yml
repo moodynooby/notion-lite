@@ -2,9 +2,9 @@ name: Test
 
 on:
   push:
-    branches: [ main, develop, rust-version ]
+    branches: [ main, master, develop, rust-version ]
   pull_request:
-    branches: [ main, develop, rust-version ]
+    branches: [ main, master, develop, rust-version ]
 
 permissions:
   contents: read

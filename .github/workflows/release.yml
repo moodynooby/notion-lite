@@ -14,6 +14,9 @@ on:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"        # e.g. v1.2.3
       - "v[0-9]+.[0-9]+.[0-9]+-*"      # e.g. v1.2.3-rc.1
+      - "[0-9]+.[0-9]+.[0-9]+"         # e.g. 0.3.24
+      - "[0-9]+.[0-9]+.[0-9]+-*"       # e.g. 0.3.24-rc.1
+      - "v*"
 
   # Allow triggering a release manually from the Actions tab.
   workflow_dispatch:
@@ -87,6 +90,8 @@ jobs:
           find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.deb" -exec cp {} staging/notion-lite_amd64.deb \;
           find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.rpm" -exec cp {} staging/notion-lite.rpm \;
           find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.AppImage" -exec cp {} staging/notion-lite.AppImage \;
+          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.sig" -exec cp {} staging/ \; || true
+          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.tar.gz*" -exec cp {} staging/ \; || true
           ls -lh staging/
 
       - uses: actions/upload-artifact@v4
@@ -147,6 +152,7 @@ jobs:
           mkdir -p staging
           find src-tauri/target/x86_64-apple-darwin/release/bundle -name "*.dmg" -exec cp {} staging/notion-lite-x64.dmg \;
           find src-tauri/target/x86_64-apple-darwin/release/bundle -name "*.app.tar.gz" -exec cp {} staging/notion-lite-macos-x64.app.tar.gz \;
+          find src-tauri/target/x86_64-apple-darwin/release/bundle -name "*.sig" -exec cp {} staging/ \; || true
           ls -lh staging/
 
       - uses: actions/upload-artifact@v4
@@ -207,6 +213,7 @@ jobs:
           mkdir -p staging
           find src-tauri/target/aarch64-apple-darwin/release/bundle -name "*.dmg" -exec cp {} staging/notion-lite-arm64.dmg \;
           find src-tauri/target/aarch64-apple-darwin/release/bundle -name "*.app.tar.gz" -exec cp {} staging/notion-lite-macos-arm64.app.tar.gz \;
+          find src-tauri/target/aarch64-apple-darwin/release/bundle -name "*.sig" -exec cp {} staging/ \; || true
           ls -lh staging/
 
       - uses: actions/upload-artifact@v4
@@ -272,6 +279,8 @@ jobs:
         run: |
           mkdir -p staging
           find src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis -name "*.exe" -exec cp {} staging/notion-lite-setup.exe \;
+          find src-tauri/target/x86_64-pc-windows-msvc/release/bundle -name "*.sig" -exec cp {} staging/ \; || true
+          find src-tauri/target/x86_64-pc-windows-msvc/release/bundle -name "*.zip*" -exec cp {} staging/ \; || true
           ls -lh staging/
 
       - uses: actions/upload-artifact@v4
@@ -391,7 +400,7 @@ jobs:
       - name: Generate SHA-256 checksums
         run: |
           cd release-assets
-          sha256sum * > SHA256SUMS.txt
+          find . -maxdepth 1 -type f ! -name "SHA256SUMS.txt" -exec sha256sum {} + | sed 's|^\./||' > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       # Generate latest.json for Tauri Updater

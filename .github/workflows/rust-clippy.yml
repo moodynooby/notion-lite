@@ -30,22 +30,33 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af #@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          components: clippy
-          override: true
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential curl wget file \
+            libxdo-dev libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libhunspell-dev \
+            libclang-dev clang llvm
 
-      - name: Install required cargo
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Install required cargo tools
         run: cargo install clippy-sarif sarif-fmt
 
       - name: Run rust-clippy
-        run:
-          cargo clippy
-          --all-features
-          --message-format=json | clippy-sarif | tee rust-clippy-results.sarif | sarif-fmt
+        working-directory: src-tauri
+        run: |
+          export LIBCLANG_PATH=$(llvm-config --libdir)
+          cargo clippy \
+            --all-features \
+            --message-format=json | clippy-sarif | tee ../rust-clippy-results.sarif | sarif-fmt
         continue-on-error: true
 
       - name: Upload analysis results to GitHub
