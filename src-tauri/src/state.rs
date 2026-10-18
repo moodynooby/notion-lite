@@ -38,7 +38,7 @@ fn get_encryption_key_for_salt(app_secret: &[u8], app_dir_name: &str) -> Key<Aes
 }
 
 fn get_encryption_key(app_secret: &[u8]) -> Key<Aes256Gcm> {
-    get_encryption_key_for_salt(app_secret, "notion")
+    get_encryption_key_for_salt(app_secret, "notion-lite")
 }
 
 fn encrypt_data(data: &[u8], key: &Key<Aes256Gcm>) -> Result<(Vec<u8>, Vec<u8>), String> {
@@ -115,11 +115,11 @@ impl AppState {
         }
     }
 
-    /// Returns the state file path (~/.config/notion/state.json)
+    /// Returns the state file path (~/.config/notion-lite/state.json)
     fn state_path() -> std::path::PathBuf {
         dirs::config_dir()
             .unwrap_or_else(|| std::path::PathBuf::from("."))
-            .join("notion")
+            .join("notion-lite")
             .join("state.json")
     }
 
@@ -150,13 +150,19 @@ impl AppState {
     pub fn load_from_disk(app_secret: &[u8]) -> Option<Self> {
         let mut path = Self::state_path();
         if !path.exists() {
-            // Check legacy lotion-rs path
-            let legacy_path = dirs::config_dir()
+            // Check legacy notion and lotion-rs paths
+            let legacy_notion_path = dirs::config_dir()
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .join("notion")
+                .join("state.json");
+            let legacy_lotion_path = dirs::config_dir()
                 .unwrap_or_else(|| std::path::PathBuf::from("."))
                 .join("lotion-rs")
                 .join("state.json");
-            if legacy_path.exists() {
-                path = legacy_path;
+            if legacy_notion_path.exists() {
+                path = legacy_notion_path;
+            } else if legacy_lotion_path.exists() {
+                path = legacy_lotion_path;
             }
         }
 
@@ -181,8 +187,12 @@ impl AppState {
                             }
                         };
 
-                        // First try with notion key, fallback to legacy lotion-rs key if needed
+                        // First try with notion-lite key, fallback to notion or legacy lotion-rs key if needed
                         let decrypt_res = decrypt_data(&decoded_data, &decoded_nonce, &key)
+                            .or_else(|_| {
+                                let notion_key = get_encryption_key_for_salt(app_secret, "notion");
+                                decrypt_data(&decoded_data, &decoded_nonce, &notion_key)
+                            })
                             .or_else(|_| {
                                 let legacy_key = get_encryption_key_for_salt(app_secret, "lotion-rs");
                                 decrypt_data(&decoded_data, &decoded_nonce, &legacy_key)

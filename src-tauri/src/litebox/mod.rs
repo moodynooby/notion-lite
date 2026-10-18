@@ -1,5 +1,4 @@
 // Copyright (c) Microsoft Corporation. Licensed under the MIT license.
-// Refactored for real OS-level containment by diegoakanottheoperator.
 
 //! # LiteBox (OS-Level Sandboxing)
 //!

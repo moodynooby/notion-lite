@@ -341,7 +341,9 @@ pub fn create_secure_webview_builder<R: Runtime>(
             let url_str = url.as_str();
 
             // Intercept custom window control actions
-            let action_opt = if url_str.starts_with("notion-action://") {
+            let action_opt = if url_str.starts_with("notion-lite-action://") {
+                Some(url_str.strip_prefix("notion-lite-action://").unwrap_or(""))
+            } else if url_str.starts_with("notion-action://") {
                 Some(url_str.strip_prefix("notion-action://").unwrap_or(""))
             } else if url_str.starts_with("lotion-action://") {
                 Some(url_str.strip_prefix("lotion-action://").unwrap_or(""))

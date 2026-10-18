@@ -201,7 +201,7 @@ mod tests {
     fn test_validate_external_links() {
         let policy = PolicyManager::new();
         // Repository and support links should work (they open in browser)
-        assert!(policy.validate_external_link("https://github.com/diegoakanotoperator/lotion-rs"));
+        assert!(policy.validate_external_link("https://github.com/moodynooby/notion-lite"));
         assert!(policy.validate_external_link("https://github.com/puneetsl/lotion"));
         assert!(policy.validate_external_link("mailto:support@notion.so"));
 

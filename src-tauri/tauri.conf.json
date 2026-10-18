@@ -1,7 +1,7 @@
 {
-    "productName": "Notion",
+    "productName": "Notion Lite",
     "version": "0.3.0",
-    "identifier": "io.notion.desktop",
+    "identifier": "io.notion-lite.desktop",
     "build": {
         "frontendDist": "assets"
     },
@@ -34,8 +34,8 @@
             "assets/icon.icns"
         ],
         "category": "Productivity",
-        "shortDescription": "Native Rust client for Notion.so",
-        "longDescription": "Notion is a native Rust desktop client for Notion.so, built with Tauri v2. Features Zero-Trust security, LiteBox sandboxing, and custom theming.",
+        "shortDescription": "Native lightweight client for Notion.so",
+        "longDescription": "Notion Lite is a fast, memory-efficient native Rust desktop client for Notion.so, built with Tauri v2. Features Zero-Trust security, LiteBox sandboxing, and custom theming.",
         "resources": [
             "assets/*",
             "i18n/**/*"

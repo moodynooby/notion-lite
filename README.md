@@ -1,24 +1,10 @@
 <p align="center">
-  <img width="60%" height="60%" src="./docs/images/Banner.png" alt="Lotion — Native Rust Desktop App for Notion.so">
+  <img width="60%" height="60%" src="./docs/images/Banner.png" alt="Notion Lite — Native Rust Desktop App for Notion.so">
 </p>
 
 <p align="center">
-  <strong>A native Rust desktop client for Notion.so — built for Linux, engineered for adversarial environments.</strong>
+  <strong>A native Rust desktop client for Notion.so — fast, memory-efficient, engineered for adversarial environments.</strong>
 </p>
-
-### ❤️ Sponsor this project
-
-**[@pdiegoakanotoperator](https://github.com/sponsors/diegoakanotoperator)**  
-*Diego Aka Not Operator*
-
-[Learn more about GitHub Sponsors](https://github.com/sponsors/diegoakanotoperator)
-
-**Ethereum (ETH / ERC-20):**
-```
-0xe7254b9a20a95658167a84120a84dce9326ef3ac
-```
-
----
 
 <p align="center">
   <a href="https://github.com/puneetsl/lotion">Based on Lotion by Puneet Singh Ludu</a> &nbsp;·&nbsp;
@@ -27,13 +13,13 @@
 
 ---
 
-# Lotion-rs
+# Notion Lite
 
-**Notion does not have a native Linux desktop client.** That gap is why the original [Lotion](https://github.com/puneetsl/lotion) Electron application was created by [Puneet Singh Ludu](https://github.com/puneetsl) — to give Linux users a proper, integrated Notion experience without resorting to the browser.
+**Notion does not have an official Linux desktop client.** That gap is why the original [Lotion](https://github.com/puneetsl/lotion) Electron application was created by [Puneet Singh Ludu](https://github.com/puneetsl) — to give Linux users a proper, integrated Notion experience without resorting to the browser.
 
-**Lotion-rs** is a complete port of that concept into Rust. It replaces the Electron/Node.js stack with [Tauri v2](https://v2.tauri.app/) for OS integration and a native injected UI, eliminating the heavy runtime overhead of a Chromium-based shell while adding a hardened, Zero-Trust security model aligned with the [SecByDesign Collective Manifesto](https://github.com/SecByDesignCollective/Manifesto).
+**Notion Lite** is a complete, lightweight rewrite in Rust. It replaces the heavy Electron/Node.js stack with [Tauri v2](https://v2.tauri.app/) for OS integration and a native injected UI, eliminating the heavy runtime overhead of a Chromium-based shell while adding a hardened, Zero-Trust security model aligned with the [SecByDesign Collective Manifesto](https://github.com/SecByDesignCollective/Manifesto).
 
-The result is a fast, memory-efficient, privacy-respecting Notion client that runs natively on Linux — and nowhere compromises on security. v0.2.4 introduces significant security hardening for domain validation and process isolation.
+The result is a fast, memory-efficient, privacy-respecting Notion client that runs natively on Linux — and nowhere compromises on security. v0.3.0 introduces zero-trust hardening, event-driven tab updates, and seamless configuration migration.
 
 ---
 
@@ -53,48 +39,48 @@ The original Lotion solved this brilliantly using Electron. But Electron carries
 
 You can download the latest version for your platform here:
 
-- [🐧 Linux (.deb)](https://github.com/moodynooby/Notion/releases/latest/download/notion_amd64.deb)
-- [🐧 Linux (.AppImage)](https://github.com/moodynooby/Notion/releases/latest/download/notion.AppImage)
-- [🐧 Linux (.rpm)](https://github.com/moodynooby/Notion/releases/latest/download/notion.rpm)
-- [🍎 macOS Intel (x64 .dmg)](https://github.com/moodynooby/Notion/releases/latest/download/notion-x64.dmg)
-- [🍎 macOS Silicon (arm64 .dmg)](https://github.com/moodynooby/Notion/releases/latest/download/notion-arm64.dmg)
-- [🪟 Windows (x64 .exe)](https://github.com/moodynooby/Notion/releases/latest/download/notion-setup.exe)
+- [🐧 Linux (.deb)](https://github.com/moodynooby/Notion/releases/latest/download/notion-lite_amd64.deb)
+- [🐧 Linux (.AppImage)](https://github.com/moodynooby/Notion/releases/latest/download/notion-lite.AppImage)
+- [🐧 Linux (.rpm)](https://github.com/moodynooby/Notion/releases/latest/download/notion-lite.rpm)
+- [🍎 macOS Intel (x64 .dmg)](https://github.com/moodynooby/Notion/releases/latest/download/notion-lite-x64.dmg)
+- [🍎 macOS Silicon (arm64 .dmg)](https://github.com/moodynooby/Notion/releases/latest/download/notion-lite-arm64.dmg)
+- [🪟 Windows (x64 .exe)](https://github.com/moodynooby/Notion/releases/latest/download/notion-lite-setup.exe)
 
 ### Debian / Ubuntu
 
 ```bash
-sudo dpkg -i notion_*.deb
+sudo dpkg -i notion-lite_*.deb
 ```
 
 ### Fedora / RHEL
 
 ```bash
-sudo rpm -i notion-*.rpm
+sudo rpm -i notion-lite-*.rpm
 ```
 
 ### AppImage (any Linux)
 
 ```bash
-chmod +x Notion_*.AppImage
-./Notion_*.AppImage
+chmod +x Notion-Lite_*.AppImage
+./Notion-Lite_*.AppImage
 ```
 
 ### Windows
 
-Download and run the `notion-setup.exe` installer.
+Download and run the `notion-lite-setup.exe` installer.
 
 ---
 
-Lotion-rs keeps everything that made Lotion great and rebuilds the foundation in Rust:
+Notion Lite keeps everything that made Notion great and rebuilds the foundation in Rust:
 
-| | Original Lotion | Lotion-rs |
+| | Original Lotion | Notion Lite |
 |---|---|---|
 | **Language** | TypeScript / JavaScript | Rust |
 | **Runtime** | Electron + Node.js | Tauri v2 (native) |
 | **UI** | Chromium renderer | System WebView + Injected native UI chrome |
 | **Memory** | ~200–400 MB | ~60–100 MB |
 | **Security** | Standard Electron sandbox | Zero-Trust + LiteBox sandboxing |
-| **Config** | JSON | TOML (`~/.config/notion/config.toml`) |
+| **Config** | JSON | TOML (`~/.config/notion-lite/config.toml`) |
 | **Packages** | `.deb`, `.rpm`, `.zip` | `.deb`, `.rpm`, `.AppImage` |
 
 ---
@@ -105,11 +91,11 @@ This project is developed in the spirit of the [Zero-Trust Engineering Manifesto
 
 > *"We do not design for ideal conditions. We engineer for the worst case, because in modern adversarial environments, the worst case is the baseline."*
 
-What that means in practice for Notion:
+What that means in practice for Notion Lite:
 
 - **Zero-Trust by Default** — No network segment is trusted. Enforces strict HTTPS schemes and exact subdomain matching for Notion and OAuth providers.
 - **LiteBox Sandboxing** — [EXPERIMENTAL] The Notion WebView runs with OS-level process isolation (Job Objects on Windows, `NO_NEW_PRIVS` on Linux). Navigation to non-allowlisted domains is intercepted and either blocked or routed to the system browser.
-- **Least Privilege** — The application requests only the OS permissions it requires. No access to your filesystem beyond `~/.config/notion/`.
+- **Least Privilege** — The application requests only the OS permissions it requires. No access to your filesystem beyond `~/.config/notion-lite/`.
 - **Anti-Telemetry** — No usage data, analytics, or crash reports are sent anywhere. What happens on your machine stays on your machine.
 - **Fail-Safe Defaults** — If configuration is missing or malformed, the application falls back to safe, hardened defaults rather than failing open.
 - **Radical Transparency** — The source code is fully open for audit. Every security claim can be verified by reading the code.
@@ -130,9 +116,9 @@ What that means in practice for Notion:
 - **No Remote Telemetry** — Zero data exfiltration. No analytics, no crash reporting pipeline, no "phone home".
 
 ### Customisation
-- **Theme Engine** — Ships with built-in themes (Dracula, Nord, and more). Theme is persisted to `~/.config/notion/config.toml`.
+- **Theme Engine** — Ships with built-in themes (Dracula, Nord, and more). Theme is persisted to `~/.config/notion-lite/config.toml`.
 - **Custom CSS Injection** — Point `custom_css_path` in your config at any `.css` file to inject custom styles into the Notion interface at runtime.
-- **TOML Configuration** — Human-readable config file at `~/.config/notion/config.toml` with hot-reloadable settings.
+- **TOML Configuration** — Human-readable config file at `~/.config/notion-lite/config.toml` with hot-reloadable settings.
 
 ### Platform
 - **Linux-First** — Primary development and testing target. Packages: `.deb`, `.rpm`, `.AppImage`.
@@ -194,14 +180,14 @@ cargo tauri dev
 
 ## Configuration
 
-Notion stores its configuration at `~/.config/notion/config.toml`. The file is created automatically on first run with sensible defaults.
+Notion Lite stores its configuration at `~/.config/notion-lite/config.toml`. The file is created automatically on first run with sensible defaults (with automatic migration from legacy `notion` or `lotion-rs` directories).
 
 ```toml
 # Active UI theme
 active_theme = "dracula"
 
 # Optional: path to a custom CSS file to inject into the Notion interface
-# custom_css_path = "/home/user/.config/notion/my-theme.css"
+# custom_css_path = "/home/user/.config/notion-lite/my-theme.css"
 
 # Whether to restore open tabs on next launch
 restore_tabs = true
@@ -226,7 +212,7 @@ maximized = false
 ## Project Structure
 
 ```
-lotion-rs/
+notion-lite/
 ├── src-tauri/           # Rust / Tauri backend
 │   ├── src/
 │   │   ├── main.rs           # Entry point, Tauri app bootstrap
@@ -259,29 +245,11 @@ See [`.github/workflows/release.yml`](.github/workflows/release.yml) for the ful
 
 ## Acknowledgments
 
-- **[Puneet Singh Ludu](https://github.com/puneetsl)** — Creator of the original [Lotion](https://github.com/puneetsl/lotion) Electron application for Linux. Lotion-rs would not exist without that project's vision of bringing Notion natively to the Linux desktop. Tremendous respect and thanks.
+- **[Puneet Singh Ludu](https://github.com/puneetsl)** — Creator of the original [Lotion](https://github.com/puneetsl/lotion) Electron application for Linux. Notion Lite would not exist without that project's vision of bringing Notion natively to the Linux desktop. Tremendous respect and thanks.
 - **[sysdrum/notion-app](https://github.com/sysdrum/notion-app)** — Early inspiration referenced in the original Lotion project.
 - **[SecByDesign Collective](https://github.com/SecByDesignCollective/Manifesto)** — The Zero-Trust Engineering Manifesto, which defines the security philosophy this project is built on.
 - **[Tauri v2](https://v2.tauri.app/)** — The framework that makes a lightweight, cross-platform, Rust-native desktop app possible.
 - **[Microsoft LiteBox](https://github.com/microsoft/LiteBox)** — Inspiration for the sandboxing technology used to provide OS-level process containment layers within the application.
-
----
-
-## ❤️ Sponsor this project
-
-### 🛡️ Support Independent Development
-
-Your support helps keep this project independent and focused on user privacy.
-
-**[@pdiegoakanotoperator](https://github.com/sponsors/diegoakanotoperator)**  
-*Diego Aka Not Operator*
-
-[Learn more about GitHub Sponsors](https://github.com/sponsors/diegoakanotoperator)
-
-**Ethereum (ETH / ERC-20):**
-```
-0xe7254b9a20a95658167a84120a84dce9326ef3ac
-```
 
 ---
 

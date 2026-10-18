@@ -12,6 +12,7 @@ pub struct NotionConfig {
 }
 
 pub type LotionConfig = NotionConfig;
+pub type NotionLiteConfig = NotionConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WindowConfig {
@@ -40,19 +41,19 @@ impl Default for NotionConfig {
 }
 
 impl NotionConfig {
-    /// Returns the config directory path (~/.config/notion/)
+    /// Returns the config directory path (~/.config/notion-lite/)
     pub fn config_dir() -> PathBuf {
         dirs::config_dir()
             .unwrap_or_else(|| PathBuf::from("."))
-            .join("notion")
+            .join("notion-lite")
     }
 
-    /// Returns the config file path (~/.config/notion/config.toml)
+    /// Returns the config file path (~/.config/notion-lite/config.toml)
     pub fn config_path() -> PathBuf {
         Self::config_dir().join("config.toml")
     }
 
-    /// Migrate config from ~/.config/lotion-rs or ~/.config/lotion to ~/.config/notion if needed
+    /// Migrate config from ~/.config/notion, ~/.config/lotion-rs or ~/.config/lotion to ~/.config/notion-lite if needed
     fn migrate_legacy_config() {
         let new_dir = Self::config_dir();
         if new_dir.exists() {
@@ -61,6 +62,7 @@ impl NotionConfig {
 
         let base_config = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
         let candidate_dirs = [
+            base_config.join("notion"),
             base_config.join("lotion-rs"),
             base_config.join("lotion"),
         ];
@@ -168,8 +170,8 @@ mod tests {
     #[test]
     fn test_config_migration() {
         let temp_base = tempfile::tempdir().unwrap();
-        let old_dir = temp_base.path().join("lotion-rs");
-        let new_dir = temp_base.path().join("notion");
+        let old_dir = temp_base.path().join("notion");
+        let new_dir = temp_base.path().join("notion-lite");
         
         fs::create_dir_all(&old_dir).unwrap();
         fs::write(old_dir.join("config.toml"), "active_theme = 'nord'").unwrap();

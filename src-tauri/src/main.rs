@@ -1,3 +1,4 @@
+use notion_lite as notion;
 use notion::policy::PolicyManager;
 use notion::security::SecurityModule;
 use notion::theming::ThemeManager;
@@ -19,7 +20,7 @@ const SECRET_FILE_NAME: &str = "secret_key";
 // Helper function to get or create the application secret
 fn get_or_create_app_secret() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let config_base = dirs::config_dir().ok_or("Could not find config directory")?;
-    let secret_dir = config_base.join("notion");
+    let secret_dir = config_base.join("notion-lite");
     let secret_path = secret_dir.join(SECRET_FILE_NAME);
 
     if secret_path.exists() {
@@ -29,9 +30,18 @@ fn get_or_create_app_secret() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         log::info!("Application secret loaded from {}", secret_path.display());
         Ok(secret)
     } else {
-        // Check for legacy lotion-rs secret key to seamlessly preserve existing sessions
-        let legacy_path = config_base.join("lotion-rs").join(SECRET_FILE_NAME);
-        if legacy_path.exists() {
+        // Check for legacy notion or lotion-rs secret key to seamlessly preserve existing sessions
+        let legacy_notion_path = config_base.join("notion").join(SECRET_FILE_NAME);
+        let legacy_lotion_path = config_base.join("lotion-rs").join(SECRET_FILE_NAME);
+        let legacy_path = if legacy_notion_path.exists() {
+            Some(legacy_notion_path)
+        } else if legacy_lotion_path.exists() {
+            Some(legacy_lotion_path)
+        } else {
+            None
+        };
+
+        if let Some(legacy_path) = legacy_path {
             log::info!("Migrating legacy application secret from {}", legacy_path.display());
             fs::create_dir_all(&secret_dir)?;
             let mut file = File::open(&legacy_path)?;
@@ -182,7 +192,7 @@ fn new_tab(
             new_id.clone(),
             notion::state::TabState {
                 id: new_id,
-                title: "Notion".to_string(),
+                title: "Notion Lite".to_string(),
                 url: notion_url.to_string(),
                 is_active: true,
                 is_pinned: false,

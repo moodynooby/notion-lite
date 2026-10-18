@@ -2530,7 +2530,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "notion"
+name = "notion-lite"
 version = "0.3.0"
 dependencies = [
  "aes-gcm",

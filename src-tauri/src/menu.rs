@@ -7,10 +7,10 @@ use tauri::{
 pub fn create_main_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let pkg_info = app.package_info();
 
-    // Notion Menu
-    let notion_menu = SubmenuBuilder::new(app, "Notion")
+    // Notion Lite Menu
+    let notion_menu = SubmenuBuilder::new(app, "Notion Lite")
         .about(Some(AboutMetadata {
-            name: Some("Notion".to_string()),
+            name: Some("Notion Lite".to_string()),
 
             version: Some(pkg_info.version.to_string()),
             ..Default::default()

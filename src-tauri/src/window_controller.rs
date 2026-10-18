@@ -10,7 +10,7 @@ pub struct WindowController<R: Runtime> {
 impl<R: Runtime> WindowController<R> {
     pub fn new(app: &AppHandle<R>, security: Arc<dyn SecuritySandbox>) -> tauri::Result<Self> {
         let window = WindowBuilder::new(app, "main")
-            .title("Notion")
+            .title("Notion Lite")
             .inner_size(1200.0, 768.0)
             .decorations(false) // Custom injected Mac-like titlebar handles this now
             .build()?;

@@ -1,13 +1,13 @@
 # Security Policy
 
-`lotion-rs` is built with a "Zero-Trust" security philosophy. We take the security of your data and your system seriously. This document outlines our security features, supported versions, and how to report vulnerabilities.
+`notion-lite` is built with a "Zero-Trust" security philosophy. We take the security of your data and your system seriously. This document outlines our security features, supported versions, and how to report vulnerabilities.
 
 ## Supported Versions
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.2.x   | :white_check_mark: |
-| < 0.2.0 | :x:                |
+| 0.3.x   | :white_check_mark: |
+| < 0.3.0 | :x:                |
 
 We only provide security patches for the latest minor release of the current major version.
 
@@ -35,8 +35,8 @@ The application implements several layers of defense-in-depth to protect users f
 
 If you discover a security vulnerability, please report it privately. You can contact the maintainer directly through the following channels:
 
-- **Email**: [diegoakanotoperator@users.noreply.github.com](mailto:diegoakanotoperator@users.noreply.github.com)
-- **GitHub Private Vulnerability Reporting**: Use the "Report a vulnerability" button on the [repository's Security tab](https://github.com/diegoakanotoperator/lotion-rs/security/advisories/new) (preferred).
+- **Email**: [98732831+moodynooby@users.noreply.github.com](mailto:98732831+moodynooby@users.noreply.github.com)
+- **GitHub Private Vulnerability Reporting**: Use the "Report a vulnerability" button on the [repository's Security tab](https://github.com/moodynooby/Notion/security/advisories/new) (preferred).
 
 Please include as much information as possible, including:
 - A description of the vulnerability.
