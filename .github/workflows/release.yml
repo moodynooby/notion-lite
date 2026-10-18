@@ -135,7 +135,6 @@ jobs:
         run: |
           export SDKROOT=$(xcrun --show-sdk-path)
           export LIBCLANG_PATH="$(brew --prefix llvm)/lib"
-          export DYLD_LIBRARY_PATH="$(brew --prefix llvm)/lib"
           echo "LIBCLANG_PATH: $LIBCLANG_PATH"
           ls -la "$LIBCLANG_PATH" | head -20
           cargo tauri build --target x86_64-apple-darwin
@@ -196,7 +195,6 @@ jobs:
         run: |
           export SDKROOT=$(xcrun --show-sdk-path)
           export LIBCLANG_PATH="$(brew --prefix llvm)/lib"
-          export DYLD_LIBRARY_PATH="$(brew --prefix llvm)/lib"
           echo "LIBCLANG_PATH: $LIBCLANG_PATH"
           ls -la "$LIBCLANG_PATH" | head -20
           cargo tauri build --target aarch64-apple-darwin
@@ -225,8 +223,16 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Windows system dependencies
+        shell: pwsh
         run: |
-          echo "Using bundled hunspell..."
+          if (Test-Path "C:\Program Files\LLVM\bin\libclang.dll") {
+            echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $env:GITHUB_ENV
+          } elseif (Test-Path "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\Llvm\x64\bin\libclang.dll") {
+            echo "LIBCLANG_PATH=C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\Llvm\x64\bin" >> $env:GITHUB_ENV
+          } else {
+            choco install llvm --no-progress
+            echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $env:GITHUB_ENV
+          }
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -246,7 +252,16 @@ jobs:
 
       - name: Build bundles
         working-directory: src-tauri
+        shell: bash
         run: |
+          if [ -z "$LIBCLANG_PATH" ]; then
+            if [ -f "C:/Program Files/LLVM/bin/libclang.dll" ]; then
+              export LIBCLANG_PATH="C:/Program Files/LLVM/bin"
+            elif [ -f "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/Llvm/x64/bin/libclang.dll" ]; then
+              export LIBCLANG_PATH="C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/Llvm/x64/bin"
+            fi
+          fi
+          echo "LIBCLANG_PATH: $LIBCLANG_PATH"
           cargo tauri build --target x86_64-pc-windows-msvc
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
