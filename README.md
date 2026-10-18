@@ -53,12 +53,12 @@ The original Lotion solved this brilliantly using Electron. But Electron carries
 
 You can download the latest version for your platform here:
 
-- [🐧 Linux (.deb)](https://github.com/diegoakanotoperator/lotion-rs/releases/latest/download/notion_amd64.deb)
-- [🐧 Linux (.AppImage)](https://github.com/diegoakanotoperator/lotion-rs/releases/latest/download/notion.AppImage)
-- [🐧 Linux (.rpm)](https://github.com/diegoakanotoperator/lotion-rs/releases/latest/download/notion.rpm)
-- [🍎 macOS Intel (x64 .dmg)](https://github.com/diegoakanotoperator/lotion-rs/releases/latest/download/notion-x64.dmg)
-- [🍎 macOS Silicon (arm64 .dmg)](https://github.com/diegoakanotoperator/lotion-rs/releases/latest/download/notion-arm64.dmg)
-- [🪟 Windows (x64 .exe)](https://github.com/diegoakanotoperator/lotion-rs/releases/latest/download/notion-setup.exe)
+- [🐧 Linux (.deb)](https://github.com/moodynooby/Notion/releases/latest/download/notion_amd64.deb)
+- [🐧 Linux (.AppImage)](https://github.com/moodynooby/Notion/releases/latest/download/notion.AppImage)
+- [🐧 Linux (.rpm)](https://github.com/moodynooby/Notion/releases/latest/download/notion.rpm)
+- [🍎 macOS Intel (x64 .dmg)](https://github.com/moodynooby/Notion/releases/latest/download/notion-x64.dmg)
+- [🍎 macOS Silicon (arm64 .dmg)](https://github.com/moodynooby/Notion/releases/latest/download/notion-arm64.dmg)
+- [🪟 Windows (x64 .exe)](https://github.com/moodynooby/Notion/releases/latest/download/notion-setup.exe)
 
 ### Debian / Ubuntu
 
@@ -176,8 +176,8 @@ cargo install tauri-cli --version "^2.0"
 ### Build
 
 ```bash
-git clone https://github.com/diegoakanotoperator/lotion-rs.git
-cd lotion-rs/src-tauri
+git clone https://github.com/moodynooby/Notion.git
+cd Notion/src-tauri
 cargo tauri build
 ```
 
