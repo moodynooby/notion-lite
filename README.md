@@ -43,10 +43,37 @@ You can download the latest version for your platform here:
 - [🍎 macOS Silicon (arm64 .dmg)](https://github.com/moodynooby/Notion/releases/latest/download/notion-lite-arm64.dmg)
 - [🪟 Windows (x64 .exe)](https://github.com/moodynooby/Notion/releases/latest/download/notion-lite-setup.exe)
 
-### Debian / Ubuntu
+### Debian / Ubuntu (APT Repository - Recommended)
+
+Configure the official APT repository using the modern **deb822 standard** (`.sources`):
 
 ```bash
-sudo dpkg -i notion-lite_*.deb
+# Automated setup (installs keyring to /etc/apt/keyrings and configures deb822 source):
+curl -fsSL https://raw.githubusercontent.com/moodynooby/Notion/main/scripts/setup.sh | bash
+```
+
+Or configure manually in `/etc/apt/sources.list.d/notion-lite.sources`:
+```deb822
+Types: deb
+URIs: https://moodynooby.github.io/Notion/apt-repo/
+Suites: stable
+Components: main
+Architectures: amd64 arm64
+Signed-By: /etc/apt/keyrings/notion-lite.gpg
+```
+
+Then install:
+```bash
+sudo apt update
+sudo apt install notion-lite
+```
+
+#### Standalone `.deb` Package
+
+If you downloaded the `.deb` file directly:
+
+```bash
+sudo apt install ./notion-lite_*.deb
 ```
 
 ### Fedora / RHEL

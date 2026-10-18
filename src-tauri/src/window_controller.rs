@@ -9,11 +9,18 @@ pub struct WindowController<R: Runtime> {
 
 impl<R: Runtime> WindowController<R> {
     pub fn new(app: &AppHandle<R>, security: Arc<dyn SecuritySandbox>) -> tauri::Result<Self> {
-        let window = WindowBuilder::new(app, "main")
+        let mut builder = WindowBuilder::new(app, "main")
             .title("Notion Lite")
             .inner_size(1200.0, 768.0)
-            .decorations(false) // Custom injected Mac-like titlebar handles this now
-            .build()?;
+            .decorations(false); // Custom injected Mac-like titlebar handles this now
+
+        if let Some(icon) = app.default_window_icon() {
+            builder = builder.icon(icon.clone())?;
+        }
+
+        let window = builder.build()?;
+        let _ = window.show();
+        let _ = window.set_focus();
 
         // Ensure window state exists in AppState
         let app_state_lock = app.state::<Arc<tokio::sync::Mutex<crate::state::AppState>>>();
@@ -83,14 +90,18 @@ impl<R: Runtime> WindowController<R> {
                 let app_state_lock =
                     app_handle.state::<Arc<tokio::sync::Mutex<crate::state::AppState>>>();
                 let mut app_state = app_state_lock.blocking_lock();
+                let mut changed = false;
                 if let Some(w_state) = app_state.windows.get_mut(&window_label) {
-                    w_state.bounds.width = size.width as f64;
-                    w_state.bounds.height = size.height as f64;
+                    if (w_state.bounds.width - size.width as f64).abs() > 1.0 || (w_state.bounds.height - size.height as f64).abs() > 1.0 {
+                        w_state.bounds.width = size.width as f64;
+                        w_state.bounds.height = size.height as f64;
+                        changed = true;
+                    }
                 }
-                if let Some(app_secret_state) = app_handle.try_state::<Arc<Vec<u8>>>() {
-                    let _ = app_state.save_to_disk(app_secret_state.inner().as_slice());
-                } else {
-                    log::error!("Zero-Trust: App secret not found in state when saving AppState (resized event).");
+                if changed {
+                    if let Some(app_secret_state) = app_handle.try_state::<Arc<Vec<u8>>>() {
+                        let _ = app_state.save_to_disk(app_secret_state.inner().as_slice());
+                    }
                 }
             }
             tauri::WindowEvent::Moved(position) => {
@@ -98,14 +109,18 @@ impl<R: Runtime> WindowController<R> {
                 let app_state_lock =
                     app_handle.state::<Arc<tokio::sync::Mutex<crate::state::AppState>>>();
                 let mut app_state = app_state_lock.blocking_lock();
+                let mut changed = false;
                 if let Some(w_state) = app_state.windows.get_mut(&window_label) {
-                    w_state.bounds.x = Some(position.x as f64);
-                    w_state.bounds.y = Some(position.y as f64);
+                    if w_state.bounds.x != Some(position.x as f64) || w_state.bounds.y != Some(position.y as f64) {
+                        w_state.bounds.x = Some(position.x as f64);
+                        w_state.bounds.y = Some(position.y as f64);
+                        changed = true;
+                    }
                 }
-                if let Some(app_secret_state) = app_handle.try_state::<Arc<Vec<u8>>>() {
-                    let _ = app_state.save_to_disk(app_secret_state.inner().as_slice());
-                } else {
-                    log::error!("Zero-Trust: App secret not found in state when saving AppState (moved event).");
+                if changed {
+                    if let Some(app_secret_state) = app_handle.try_state::<Arc<Vec<u8>>>() {
+                        let _ = app_state.save_to_disk(app_secret_state.inner().as_slice());
+                    }
                 }
             }
             _ => {}
@@ -178,10 +193,24 @@ impl<R: Runtime> WindowController<R> {
             let mut app_state = app_state_lock.blocking_lock();
             if let Some(window_state) = app_state.windows.get_mut(self.window.label()) {
                 window_state.tab_ids.push(tab_id.clone());
+                window_state.active_tab_id = Some(tab_id.clone());
             }
+            app_state.tabs.insert(
+                tab_id.clone(),
+                crate::state::TabState {
+                    id: tab_id.clone(),
+                    title: "Notion Lite".to_string(),
+                    url: notion_url.to_string(),
+                    is_active: true,
+                    is_pinned: false,
+                },
+            );
 
             let _ = tab_manager.show_tab(&tab_id);
         }
+
+        let _ = self.window.show();
+        let _ = self.window.set_focus();
 
         Ok(())
     }

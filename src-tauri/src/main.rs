@@ -289,10 +289,6 @@ fn main() {
     #[cfg(target_os = "linux")]
     {
         std::env::set_var("NO_AT_BRIDGE", "1");
-        std::env::set_var("WEBKIT_USE_SINGLE_WEB_PROCESS", "1");
-        std::env::set_var("WEBKIT_DISABLE_ACCESSIBILITY", "1");
-        std::env::set_var("GTK_A11Y", "none");
-        std::env::set_var("GIO_USE_VFS", "local");
 
         // Optional hardware acceleration fallback for problematic GPU drivers
         if std::env::var("NOTION_DISABLE_GPU").map(|v| v == "1").unwrap_or(false) {
@@ -395,6 +391,28 @@ fn main() {
                 Err(e) => {
                     log::error!("Failed to create WindowController: {}", e);
                 }
+            }
+
+            // Spawn tray icon if supported
+            if let Some(icon) = app.default_window_icon() {
+                let _ = tauri::tray::TrayIconBuilder::new()
+                    .icon(icon.clone())
+                    .tooltip("Notion Lite")
+                    .on_tray_icon_event(|tray, event| {
+                        if let tauri::tray::TrayIconEvent::Click {
+                            button: tauri::tray::MouseButton::Left,
+                            button_state: tauri::tray::MouseButtonState::Up,
+                            ..
+                        } = event
+                        {
+                            let app = tray.app_handle();
+                            if let Some(window) = app.get_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                    })
+                    .build(app);
             }
 
             log::info!("Tauri background layer initialized.");

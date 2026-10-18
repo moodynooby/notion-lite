@@ -377,6 +377,16 @@ jobs:
       - name: List release assets
         run: find release-assets/ -type f | sort
 
+      # Build compliant Debian/Ubuntu APT repository according to apt-packaging-guide.md
+      - name: Build APT Repository
+        run: |
+          sudo apt-get update && sudo apt-get install -y dpkg-dev
+          mkdir -p dist
+          find release-assets -name "*.deb" -exec cp {} dist/ \;
+          ./scripts/update-repo.sh apt-repo
+          tar -czf release-assets/apt-repo.tar.gz -C apt-repo .
+          cp scripts/setup.sh release-assets/
+
       # Generate SHA-256 checksums for all assets
       - name: Generate SHA-256 checksums
         run: |

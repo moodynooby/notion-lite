@@ -29,6 +29,14 @@
             "nsis"
         ],
         "icon": [
+            "assets/icons/16x16.png",
+            "assets/icons/32x32.png",
+            "assets/icons/48x48.png",
+            "assets/icons/64x64.png",
+            "assets/icons/128x128.png",
+            "assets/icons/128x128@2x.png",
+            "assets/icons/256x256.png",
+            "assets/icons/512x512.png",
             "assets/icon.png",
             "assets/icon.ico",
             "assets/icon.icns"
@@ -39,6 +47,31 @@
         "resources": [
             "assets/*",
             "i18n/**/*"
-        ]
+        ],
+        "linux": {
+            "deb": {
+                "depends": [
+                    "libc6 (>= 2.34)",
+                    "libwebkit2gtk-4.1-0",
+                    "libgtk-3-0",
+                    "libayatana-appindicator3-1",
+                    "librsvg2-common",
+                    "ca-certificates"
+                ],
+                "files": {
+                    "/usr/share/applications/notion-lite.desktop": "assets/notion-lite.desktop",
+                    "/usr/share/pixmaps/notion-lite.png": "assets/icons/256x256.png",
+                    "/usr/share/icons/hicolor/16x16/apps/notion-lite.png": "assets/icons/16x16.png",
+                    "/usr/share/icons/hicolor/32x32/apps/notion-lite.png": "assets/icons/32x32.png",
+                    "/usr/share/icons/hicolor/48x48/apps/notion-lite.png": "assets/icons/48x48.png",
+                    "/usr/share/icons/hicolor/64x64/apps/notion-lite.png": "assets/icons/64x64.png",
+                    "/usr/share/icons/hicolor/128x128/apps/notion-lite.png": "assets/icons/128x128.png",
+                    "/usr/share/icons/hicolor/256x256/apps/notion-lite.png": "assets/icons/256x256.png",
+                    "/usr/share/icons/hicolor/512x512/apps/notion-lite.png": "assets/icons/512x512.png"
+                },
+                "postInstallScript": "scripts/postinst.sh",
+                "postRemoveScript": "scripts/postrm.sh"
+            }
+        }
     }
 }

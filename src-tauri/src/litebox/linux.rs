@@ -15,18 +15,19 @@ pub fn apply_linux_sandbox() -> Result<(), String> {
         // CLONE_NEWUTS: Hostname namespace
         // CLONE_NEWIPC: IPC namespace
         // CLONE_NEWPID: PID namespace (this process becomes PID 1 in the new namespace)
-        // CLONE_NEWNET: Network namespace (no network access)
-        let flags = libc::CLONE_NEWNS | libc::CLONE_NEWUTS | libc::CLONE_NEWIPC | libc::CLONE_NEWPID | libc::CLONE_NEWNET;
+        // Attempt basic namespace isolation if privileges allow, but do not
+        // unshare CLONE_NEWNET (Notion requires internet) or CLONE_NEWIPC (GUI display requires IPC).
+        // If unshare fails or is restricted by kernel/AppArmor (e.g. unprivileged userns restriction),
+        // gracefully fall back to basic resource dropping.
+        let flags = libc::CLONE_NEWNS | libc::CLONE_NEWUTS;
         
-        // Note: unshare(CLONE_NEWUSER) is often needed if not running as root,
-        // but it can complicate resource access. We'll stick to basic resource dropping
-        // if unshare fails or is restricted by sysctl.
         if libc::unshare(flags) != 0 {
-            let error_message = format!("LiteBox: Failed to unshare namespaces (might lack CAP_SYS_ADMIN or user namespaces restricted): {}", std::io::Error::last_os_error());
-            log::error!("{}", error_message);
-            return Err(error_message);
+            log::warn!(
+                "LiteBox: Namespace isolation unavailable (might lack CAP_SYS_ADMIN or user namespaces restricted by AppArmor/sysctl): {}. Continuing with privilege dropping.",
+                std::io::Error::last_os_error()
+            );
         } else {
-            log::info!("LiteBox: Full namespace isolation enforced (NS, UTS, IPC, PID, NET).");
+            log::info!("LiteBox: Namespace isolation enforced (NS, UTS).");
         }
 
         // 2. Disable core dumps and ptrace attachments

@@ -44,11 +44,14 @@ impl<R: Runtime> TabController<R> {
             create_secure_webview_builder(app, &tab_id, &url, window_id, policy.clone());
 
         let inner_size = window.inner_size()?;
+        let width = if inner_size.width > 0 { inner_size.width as f64 } else { 1200.0 };
+        let height = if inner_size.height > 0 { inner_size.height as f64 } else { 768.0 };
         let webview = window.add_child(
             webview_builder,
             tauri::LogicalPosition::new(0.0, 0.0),
-            tauri::LogicalSize::new(inner_size.width as f64, inner_size.height as f64),
+            tauri::LogicalSize::new(width, height),
         )?;
+        let _ = webview.show();
 
         log::info!("Created tab webview: {} in window: {}", tab_id, window_id);
 

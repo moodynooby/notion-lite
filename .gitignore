@@ -28,6 +28,9 @@ src-tauri/lib/
 src-tauri/.cargo/lib/
 src-tauri/target/
 tmp/
+build/
+dist/
+apt-repo/
 
 # Security
 *.key

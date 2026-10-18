@@ -14,6 +14,9 @@ use base64::{engine::general_purpose, Engine as _};
 // const APPLICATION_SECRET: &[u8] = b"lotion-rs-super-secret-key-that-is-long-and-random-for-pbkdf2";
 const PBKDF2_ITERATIONS: u32 = 100_000;
 
+use std::sync::OnceLock;
+static CACHED_KEY: OnceLock<Key<Aes256Gcm>> = OnceLock::new();
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncryptedState {
     pub data: String, // Base64 encoded encrypted data
@@ -38,7 +41,9 @@ fn get_encryption_key_for_salt(app_secret: &[u8], app_dir_name: &str) -> Key<Aes
 }
 
 fn get_encryption_key(app_secret: &[u8]) -> Key<Aes256Gcm> {
-    get_encryption_key_for_salt(app_secret, "notion-lite")
+    *CACHED_KEY.get_or_init(|| {
+        get_encryption_key_for_salt(app_secret, "notion-lite")
+    })
 }
 
 fn encrypt_data(data: &[u8], key: &Key<Aes256Gcm>) -> Result<(Vec<u8>, Vec<u8>), String> {
