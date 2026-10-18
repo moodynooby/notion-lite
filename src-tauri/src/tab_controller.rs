@@ -49,11 +49,8 @@ impl<R: Runtime> TabController<R> {
         } else {
             tauri::Size::Logical(tauri::LogicalSize::new(1200.0, 768.0))
         };
-        let webview = window.add_child(
-            webview_builder,
-            tauri::LogicalPosition::new(0.0, 0.0),
-            size,
-        )?;
+        let webview =
+            window.add_child(webview_builder, tauri::LogicalPosition::new(0.0, 0.0), size)?;
         let _ = webview.set_auto_resize(true);
         let _ = webview.show();
 
@@ -139,7 +136,11 @@ impl<R: Runtime> TabController<R> {
 /// Guaranteeing that any nested popups (e.g. nested OAuth flows) inherit
 /// the exact same zero-trust `on_navigation` and `on_new_window` policies
 /// as their parent window via the TabController factory.
-pub fn spawn_secure_popup<R: Runtime>(app: &AppHandle<R>, _policy: Arc<dyn PolicyEnforcer>, url: Url) {
+pub fn spawn_secure_popup<R: Runtime>(
+    app: &AppHandle<R>,
+    _policy: Arc<dyn PolicyEnforcer>,
+    url: Url,
+) {
     log::info!(
         "Intercepted popup request. Routing into a secure in-app tab: {}",
         url.as_str()

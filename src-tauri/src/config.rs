@@ -69,7 +69,11 @@ impl NotionConfig {
 
         for old_dir in &candidate_dirs {
             if old_dir.exists() {
-                log::info!("Migrating legacy config from {} to {}", old_dir.display(), new_dir.display());
+                log::info!(
+                    "Migrating legacy config from {} to {}",
+                    old_dir.display(),
+                    new_dir.display()
+                );
                 if let Err(e) = fs::create_dir_all(&new_dir) {
                     log::error!("Failed to create new config dir: {}", e);
                     return;
@@ -110,28 +114,29 @@ impl NotionConfig {
         let path = Self::config_path();
         if path.exists() {
             match fs::read_to_string(&path) {
-                Ok(contents) => {
-                    match toml::from_str::<NotionConfig>(&contents) {
-                        Ok(mut config) => {
-                            if let Some(ref path) = config.custom_css_path {
-                                let custom_themes_dir = Self::config_dir().join("custom_themes");
-                                if !path.starts_with(&custom_themes_dir) {
-                                    log::warn!("Custom CSS path '{}' is outside the designated custom themes directory. Discarding for security.", path.display());
-                                    config.custom_css_path = None;
-                                } else if !path.extension().map_or(false, |ext| ext == "css") {
-                                    log::warn!("Custom CSS path '{}' does not have a .css extension. Discarding for security.", path.display());
-                                    config.custom_css_path = None;
-                                } else if !path.exists() {
-                                    log::warn!("Custom CSS path '{}' does not exist. Discarding.", path.display());
-                                    config.custom_css_path = None;
-                                }
+                Ok(contents) => match toml::from_str::<NotionConfig>(&contents) {
+                    Ok(mut config) => {
+                        if let Some(ref path) = config.custom_css_path {
+                            let custom_themes_dir = Self::config_dir().join("custom_themes");
+                            if !path.starts_with(&custom_themes_dir) {
+                                log::warn!("Custom CSS path '{}' is outside the designated custom themes directory. Discarding for security.", path.display());
+                                config.custom_css_path = None;
+                            } else if !path.extension().is_some_and(|ext| ext == "css") {
+                                log::warn!("Custom CSS path '{}' does not have a .css extension. Discarding for security.", path.display());
+                                config.custom_css_path = None;
+                            } else if !path.exists() {
+                                log::warn!(
+                                    "Custom CSS path '{}' does not exist. Discarding.",
+                                    path.display()
+                                );
+                                config.custom_css_path = None;
                             }
-                            log::info!("Config loaded from {}", path.display());
-                            return config;
                         }
-                        Err(e) => {
-                            log::warn!("Failed to parse config, using defaults: {}", e);
-                        }
+                        log::info!("Config loaded from {}", path.display());
+                        return config;
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to parse config, using defaults: {}", e);
                     }
                 },
                 Err(e) => {
@@ -172,7 +177,7 @@ mod tests {
         let temp_base = tempfile::tempdir().unwrap();
         let old_dir = temp_base.path().join("notion");
         let new_dir = temp_base.path().join("notion-lite");
-        
+
         fs::create_dir_all(&old_dir).unwrap();
         fs::write(old_dir.join("config.toml"), "active_theme = 'nord'").unwrap();
         fs::write(old_dir.join("state.json"), "{}").unwrap();

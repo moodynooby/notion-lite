@@ -48,7 +48,9 @@ impl<R: Runtime> WindowController<R> {
             if let Some(app_secret_state) = app.try_state::<Arc<Vec<u8>>>() {
                 let _ = app_state.save_to_disk(app_secret_state.inner().as_slice());
             } else {
-                log::error!("Zero-Trust: App secret not found in state when creating new window state.");
+                log::error!(
+                    "Zero-Trust: App secret not found in state when creating new window state."
+                );
             }
         }
 

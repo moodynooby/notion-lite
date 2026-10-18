@@ -20,7 +20,7 @@ pub fn apply_linux_sandbox() -> Result<(), String> {
         // If unshare fails or is restricted by kernel/AppArmor (e.g. unprivileged userns restriction),
         // gracefully fall back to basic resource dropping.
         let flags = libc::CLONE_NEWNS | libc::CLONE_NEWUTS;
-        
+
         if libc::unshare(flags) != 0 {
             log::warn!(
                 "LiteBox: Namespace isolation unavailable (might lack CAP_SYS_ADMIN or user namespaces restricted by AppArmor/sysctl): {}. Continuing with privilege dropping.",

@@ -1,20 +1,20 @@
-use notion_lite as notion;
 use notion::policy::PolicyManager;
 use notion::security::SecurityModule;
 use notion::theming::ThemeManager;
+use notion_lite as notion;
 
 use notion::config::NotionConfig;
 use notion::i18n::I18nManager;
 use notion::spellcheck::SpellcheckManager;
 use notion::state::AppState;
-use std::sync::Arc;
-use tauri::Manager;
-use tauri_plugin_updater::UpdaterExt;
+use rand::RngCore;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 #[cfg(target_family = "unix")]
 use std::os::unix::fs::PermissionsExt; // Specific import for unix permissions
-use rand::RngCore;
+use std::sync::Arc;
+use tauri::Manager;
+use tauri_plugin_updater::UpdaterExt;
 
 const SECRET_FILE_NAME: &str = "secret_key";
 
@@ -43,12 +43,15 @@ fn get_or_create_app_secret() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         };
 
         if let Some(legacy_path) = legacy_path {
-            log::info!("Migrating legacy application secret from {}", legacy_path.display());
+            log::info!(
+                "Migrating legacy application secret from {}",
+                legacy_path.display()
+            );
             fs::create_dir_all(&secret_dir)?;
             let mut file = File::open(&legacy_path)?;
             let mut secret = vec![0u8; 32];
             file.read_exact(&mut secret)?;
-            
+
             let mut new_file = File::create(&secret_path)?;
             #[cfg(target_family = "unix")]
             {
@@ -58,9 +61,12 @@ fn get_or_create_app_secret() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
             return Ok(secret);
         }
 
-        log::info!("Generating new application secret at {}", secret_path.display());
+        log::info!(
+            "Generating new application secret at {}",
+            secret_path.display()
+        );
         fs::create_dir_all(&secret_dir)?;
-        
+
         let mut secret = vec![0u8; 32];
         rand::thread_rng().fill_bytes(&mut secret);
 
@@ -77,7 +83,7 @@ fn get_or_create_app_secret() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
 
 // Helper function to check if the command invocation origin is trusted
 fn is_trusted_origin<R: tauri::Runtime>(webview: &tauri::Webview<R>) -> bool {
-    let trusted_origins = vec![
+    let trusted_origins = [
         "https://www.notion.so",
         "https://notion.so",
         "https://www.notion.com",
@@ -255,7 +261,11 @@ fn update_tab_state(
 }
 
 #[tauri::command]
-fn minimize_window(webview: tauri::Webview<tauri::Wry>, window_id: String, app: tauri::AppHandle<tauri::Wry>) {
+fn minimize_window(
+    webview: tauri::Webview<tauri::Wry>,
+    window_id: String,
+    app: tauri::AppHandle<tauri::Wry>,
+) {
     if !is_trusted_origin(&webview) {
         return; // Deny access for untrusted origins
     }
@@ -265,7 +275,11 @@ fn minimize_window(webview: tauri::Webview<tauri::Wry>, window_id: String, app: 
 }
 
 #[tauri::command]
-fn maximize_window(webview: tauri::Webview<tauri::Wry>, window_id: String, app: tauri::AppHandle<tauri::Wry>) {
+fn maximize_window(
+    webview: tauri::Webview<tauri::Wry>,
+    window_id: String,
+    app: tauri::AppHandle<tauri::Wry>,
+) {
     if !is_trusted_origin(&webview) {
         return; // Deny access for untrusted origins
     }
@@ -279,7 +293,11 @@ fn maximize_window(webview: tauri::Webview<tauri::Wry>, window_id: String, app: 
 }
 
 #[tauri::command]
-fn close_window(webview: tauri::Webview<tauri::Wry>, window_id: String, app: tauri::AppHandle<tauri::Wry>) {
+fn close_window(
+    webview: tauri::Webview<tauri::Wry>,
+    window_id: String,
+    app: tauri::AppHandle<tauri::Wry>,
+) {
     if !is_trusted_origin(&webview) {
         return; // Deny access for untrusted origins
     }
@@ -304,7 +322,11 @@ async fn check_for_updates<R: tauri::Runtime>(
             .download_and_install(
                 |chunk_length, content_length| {
                     downloaded += chunk_length;
-                    log::info!("Auto-updater: Downloaded {} of {:?}", downloaded, content_length);
+                    log::info!(
+                        "Auto-updater: Downloaded {} of {:?}",
+                        downloaded,
+                        content_length
+                    );
                 },
                 || {
                     log::info!("Auto-updater: Download complete, applying update...");
@@ -331,7 +353,10 @@ fn main() {
         std::env::set_var("NO_AT_BRIDGE", "1");
 
         // Optional hardware acceleration fallback for problematic GPU drivers
-        if std::env::var("NOTION_DISABLE_GPU").map(|v| v == "1").unwrap_or(false) {
+        if std::env::var("NOTION_DISABLE_GPU")
+            .map(|v| v == "1")
+            .unwrap_or(false)
+        {
             log::info!("Hardware acceleration disabled by NOTION_DISABLE_GPU");
             std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
@@ -346,8 +371,8 @@ fn main() {
     log::info!("Starting Notion...");
 
     // Get or create application secret
-    let app_secret = get_or_create_app_secret()
-        .expect("Failed to get or create application secret");
+    let app_secret =
+        get_or_create_app_secret().expect("Failed to get or create application secret");
     let app_secret_arc = Arc::new(app_secret);
 
     // Load user config
@@ -422,7 +447,10 @@ fn main() {
                 .clone();
 
             // Spawn the main window directly via Tauri WindowController
-            match notion::window_controller::WindowController::<tauri::Wry>::new(&handle, security_state) {
+            match notion::window_controller::WindowController::<tauri::Wry>::new(
+                &handle,
+                security_state,
+            ) {
                 Ok(wc) => {
                     wc.setup_listeners(handle.clone());
                     if let Err(e) = wc.setup_tabs(&handle) {

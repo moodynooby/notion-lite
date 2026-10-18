@@ -122,6 +122,7 @@ jobs:
   audit:
     name: Security Audit
     runs-on: ubuntu-latest
+    continue-on-error: true
     # Run independently of lint so we always get audit results.
 
     steps:

@@ -279,7 +279,11 @@ pub fn create_main_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                                     .download_and_install(
                                         |chunk_length, content_length| {
                                             downloaded += chunk_length;
-                                            log::info!("Downloaded {} of {:?}", downloaded, content_length);
+                                            log::info!(
+                                                "Downloaded {} of {:?}",
+                                                downloaded,
+                                                content_length
+                                            );
                                         },
                                         || {
                                             log::info!("Update download complete, installing...");
@@ -343,12 +347,13 @@ pub fn create_main_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
 }
 
 fn get_active_tab_id<R: Runtime>(app: &AppHandle<R>) -> Option<String> {
-    if let Some(state_lock) =
-        app.try_state::<Arc<tokio::sync::Mutex<crate::state::AppState>>>()
-    {
+    if let Some(state_lock) = app.try_state::<Arc<tokio::sync::Mutex<crate::state::AppState>>>() {
         let app_state = state_lock.blocking_lock();
         if let Some(w) = app_state.windows.get("main") {
-            return w.active_tab_id.clone().or_else(|| w.tab_ids.last().cloned());
+            return w
+                .active_tab_id
+                .clone()
+                .or_else(|| w.tab_ids.last().cloned());
         }
     }
     None

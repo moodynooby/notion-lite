@@ -89,9 +89,7 @@ impl<R: Runtime> ThemingEngine<R> for ThemeManager {
                     Ok(css) => {
                         log::info!("Loaded custom CSS from {}", path.display());
                         // Escape backticks and backslashes to prevent JavaScript injection
-                        let escaped_css = css
-                            .replace('`', "\\`")
-                            .replace('\\', "\\\\");
+                        let escaped_css = css.replace('`', "\\`").replace('\\', "\\\\");
                         return format!("(function() {{
                             const style = document.getElementById('notion-custom-style') || document.createElement('style');
                             style.id = 'notion-custom-style';
