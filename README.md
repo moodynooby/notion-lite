@@ -1,6 +1,3 @@
-<p align="center">
-  <img width="60%" height="60%" src="./docs/images/Banner.png" alt="Notion Lite — Native Rust Desktop App for Notion.so">
-</p>
 
 <p align="center">
   <strong>A native Rust desktop client for Notion.so — fast, memory-efficient, engineered for adversarial environments.</strong>
