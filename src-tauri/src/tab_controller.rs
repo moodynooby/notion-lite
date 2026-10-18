@@ -84,7 +84,7 @@ impl<R: Runtime> TabController<R> {
                 // 2. Inject Native-feeling Window Controls (Titlebar)
                 window.addEventListener('DOMContentLoaded', () => {{
                     const titlebar = document.createElement('div');
-                    titlebar.id = 'lotion-custom-titlebar';
+                    titlebar.id = 'notion-custom-titlebar';
                     titlebar.setAttribute('data-tauri-drag-region', '');
                     titlebar.style.cssText = `
                         position: fixed;
@@ -106,7 +106,7 @@ impl<R: Runtime> TabController<R> {
                     style.textContent = `
                         .notion-sidebar-container {{ margin-top: 38px !important; }}
                         .notion-topbar {{ padding-left: 80px !important; }}
-                        .lotion-tab {{
+                        .notion-custom-tab {{
                             padding: 4px 12px;
                             font-size: 12px;
                             border-radius: 6px 6px 0 0;
@@ -123,16 +123,16 @@ impl<R: Runtime> TabController<R> {
                             border-bottom: none;
                             pointer-events: auto;
                         }}
-                        .lotion-tab.active {{
+                        .notion-custom-tab.active {{
                             background: white;
                             font-weight: 500;
                         }}
-                        .lotion-tab-close {{
+                        .notion-custom-tab-close {{
                             font-size: 14px;
                             opacity: 0.5;
                             transition: opacity 0.2s;
                         }}
-                        .lotion-tab-close:hover {{
+                        .notion-custom-tab-close:hover {{
                             opacity: 1;
                         }}
                     `;
@@ -183,7 +183,6 @@ impl<R: Runtime> TabController<R> {
                         }}
                     }});
 
-
                     btnContainer.appendChild(closeBtn);
                     btnContainer.appendChild(minBtn);
                     btnContainer.appendChild(maxBtn);
@@ -208,11 +207,11 @@ impl<R: Runtime> TabController<R> {
                         tabList.innerHTML = '';
                         tabs.forEach(t => {{
                             const tabEl = document.createElement('div');
-                            tabEl.className = 'lotion-tab' + (t.id === tabId ? ' active' : '');
+                            tabEl.className = 'notion-custom-tab' + (t.id === tabId ? ' active' : '');
                             tabEl.innerText = t.title || 'Notion';
 
                             const closeX = document.createElement('span');
-                            closeX.className = 'lotion-tab-close';
+                            closeX.className = 'notion-custom-tab-close';
                             closeX.innerText = ' ×';
                             closeX.onclick = (e) => {{
                                 e.stopPropagation();
@@ -243,67 +242,17 @@ impl<R: Runtime> TabController<R> {
                     document.body.appendChild(titlebar);
 
                     renderTabs();
-                    // Poll for tab changes (simple for now)
-                    setInterval(renderTabs, 5000);
+                    // Event-driven tab refresh on window focus and visibility change (avoids constant timer polling)
+                    window.addEventListener('focus', renderTabs);
+                    document.addEventListener('visibilitychange', () => {{
+                        if (!document.hidden) renderTabs();
+                    }});
                 }});
             }})();
         "#,
             tab_id, window_id
         );
         let _ = webview.eval(&title_observer_js);
-
-        // Inject network monitor — intercepts fetch and XHR to log status/errors
-        let network_monitor_js = r#"
-            (function() {
-                const log = (msg) => {
-                    console.log(msg);
-                    if (window.__TAURI__) {
-                        // The log_network_event command in Rust has origin validation and truncation.
-                        window.__TAURI__.invoke('log_network_event', { event: msg });
-                    }
-                };
-
-                const getOrigin = (url) => {
-                    try {
-                        const u = new URL(url);
-                        return `${u.protocol}//${u.hostname}`;
-                    } catch {
-                        return 'invalid-url';
-                    }
-                };
-
-                // Monitor Fetch
-                const originalFetch = window.fetch;
-                window.fetch = async (...args) => {
-                    const url = args[0] instanceof Request ? args[0].url : args[0];
-                    const origin = getOrigin(url); // Log origin instead of full URL
-                    try {
-                        const response = await originalFetch(...args);
-                        log(`FETCH SUCCESS: ${response.status} from ${origin}`);
-                        return response;
-                    } catch (error) {
-                        log(`FETCH ERROR: ${origin} - ${error.message}`);
-                        throw error;
-                    }
-                };
-
-                // Monitor XHR
-                const originalOpen = XMLHttpRequest.prototype.open;
-                XMLHttpRequest.prototype.open = function(method, url) {
-                    this._url = url;
-                    const origin = getOrigin(url); // Log origin instead of full URL
-                    this.addEventListener('load', function() {
-                        log(`XHR SUCCESS: ${this.status} from ${origin}`);
-                    });
-                    this.addEventListener('error', function() {
-                        log(`XHR ERROR: ${origin}`);
-                    });
-                    return originalOpen.apply(this, arguments);
-                };
-                log('Network monitoring active.');
-            })();
-        "#;
-        let _ = webview.eval(network_monitor_js);
 
         Ok(Self {
             tab_id,
@@ -392,9 +341,16 @@ pub fn create_secure_webview_builder<R: Runtime>(
             let url_str = url.as_str();
 
             // Intercept custom window control actions
-            if url_str.starts_with("lotion-action://") {
-                let action = url_str.strip_prefix("lotion-action://").unwrap_or("");
-                log::info!("Intercepted Lotion action: {}", action);
+            let action_opt = if url_str.starts_with("notion-action://") {
+                Some(url_str.strip_prefix("notion-action://").unwrap_or(""))
+            } else if url_str.starts_with("lotion-action://") {
+                Some(url_str.strip_prefix("lotion-action://").unwrap_or(""))
+            } else {
+                None
+            };
+
+            if let Some(action) = action_opt {
+                log::info!("Intercepted action: {}", action);
 
                 if let Some(w) = nav_app.get_window(window_id) {
                     match action {

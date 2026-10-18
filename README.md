@@ -53,35 +53,35 @@ The original Lotion solved this brilliantly using Electron. But Electron carries
 
 You can download the latest version for your platform here:
 
-- [🐧 Linux (.deb)](https://github.com/diegoakanotoperator/lotion-rs/releases/latest/download/lotion-rs_amd64.deb)
-- [🐧 Linux (.AppImage)](https://github.com/diegoakanotoperator/lotion-rs/releases/latest/download/lotion-rs.AppImage)
-- [🐧 Linux (.rpm)](https://github.com/diegoakanotoperator/lotion-rs/releases/latest/download/lotion-rs.rpm)
-- [🍎 macOS Intel (x64 .dmg)](https://github.com/diegoakanotoperator/lotion-rs/releases/latest/download/lotion-rs-x64.dmg)
-- [🍎 macOS Silicon (arm64 .dmg)](https://github.com/diegoakanotoperator/lotion-rs/releases/latest/download/lotion-rs-arm64.dmg)
-- [🪟 Windows (x64 .exe)](https://github.com/diegoakanotoperator/lotion-rs/releases/latest/download/lotion-rs-setup.exe)
+- [🐧 Linux (.deb)](https://github.com/diegoakanotoperator/lotion-rs/releases/latest/download/notion_amd64.deb)
+- [🐧 Linux (.AppImage)](https://github.com/diegoakanotoperator/lotion-rs/releases/latest/download/notion.AppImage)
+- [🐧 Linux (.rpm)](https://github.com/diegoakanotoperator/lotion-rs/releases/latest/download/notion.rpm)
+- [🍎 macOS Intel (x64 .dmg)](https://github.com/diegoakanotoperator/lotion-rs/releases/latest/download/notion-x64.dmg)
+- [🍎 macOS Silicon (arm64 .dmg)](https://github.com/diegoakanotoperator/lotion-rs/releases/latest/download/notion-arm64.dmg)
+- [🪟 Windows (x64 .exe)](https://github.com/diegoakanotoperator/lotion-rs/releases/latest/download/notion-setup.exe)
 
 ### Debian / Ubuntu
 
 ```bash
-sudo dpkg -i lotion_*.deb
+sudo dpkg -i notion_*.deb
 ```
 
 ### Fedora / RHEL
 
 ```bash
-sudo rpm -i lotion-*.rpm
+sudo rpm -i notion-*.rpm
 ```
 
 ### AppImage (any Linux)
 
 ```bash
-chmod +x Lotion_*.AppImage
-./Lotion_*.AppImage
+chmod +x Notion_*.AppImage
+./Notion_*.AppImage
 ```
 
 ### Windows
 
-Download and run the `lotion-rs-setup.exe` installer.
+Download and run the `notion-setup.exe` installer.
 
 ---
 
@@ -94,7 +94,7 @@ Lotion-rs keeps everything that made Lotion great and rebuilds the foundation in
 | **UI** | Chromium renderer | System WebView + Injected native UI chrome |
 | **Memory** | ~200–400 MB | ~60–100 MB |
 | **Security** | Standard Electron sandbox | Zero-Trust + LiteBox sandboxing |
-| **Config** | JSON | TOML (`~/.config/lotion-rs/config.toml`) |
+| **Config** | JSON | TOML (`~/.config/notion/config.toml`) |
 | **Packages** | `.deb`, `.rpm`, `.zip` | `.deb`, `.rpm`, `.AppImage` |
 
 ---
@@ -105,11 +105,11 @@ This project is developed in the spirit of the [Zero-Trust Engineering Manifesto
 
 > *"We do not design for ideal conditions. We engineer for the worst case, because in modern adversarial environments, the worst case is the baseline."*
 
-What that means in practice for Lotion-rs:
+What that means in practice for Notion:
 
-- **Zero-Trust by Default** — No network segment is trusted. v0.2.4 enforces strict HTTPS schemes and exact subdomain matching for Notion and OAuth providers.
+- **Zero-Trust by Default** — No network segment is trusted. Enforces strict HTTPS schemes and exact subdomain matching for Notion and OAuth providers.
 - **LiteBox Sandboxing** — [EXPERIMENTAL] The Notion WebView runs with OS-level process isolation (Job Objects on Windows, `NO_NEW_PRIVS` on Linux). Navigation to non-allowlisted domains is intercepted and either blocked or routed to the system browser.
-- **Least Privilege** — The application requests only the OS permissions it requires. No access to your filesystem beyond `~/.config/lotion-rs/`.
+- **Least Privilege** — The application requests only the OS permissions it requires. No access to your filesystem beyond `~/.config/notion/`.
 - **Anti-Telemetry** — No usage data, analytics, or crash reports are sent anywhere. What happens on your machine stays on your machine.
 - **Fail-Safe Defaults** — If configuration is missing or malformed, the application falls back to safe, hardened defaults rather than failing open.
 - **Radical Transparency** — The source code is fully open for audit. Every security claim can be verified by reading the code.
@@ -130,9 +130,9 @@ What that means in practice for Lotion-rs:
 - **No Remote Telemetry** — Zero data exfiltration. No analytics, no crash reporting pipeline, no "phone home".
 
 ### Customisation
-- **Theme Engine** — Ships with built-in themes (Dracula, Nord, and more). Theme is persisted to `~/.config/lotion-rs/config.toml`.
+- **Theme Engine** — Ships with built-in themes (Dracula, Nord, and more). Theme is persisted to `~/.config/notion/config.toml`.
 - **Custom CSS Injection** — Point `custom_css_path` in your config at any `.css` file to inject custom styles into the Notion interface at runtime.
-- **TOML Configuration** — Human-readable config file at `~/.config/lotion-rs/config.toml` with hot-reloadable settings.
+- **TOML Configuration** — Human-readable config file at `~/.config/notion/config.toml` with hot-reloadable settings.
 
 ### Platform
 - **Linux-First** — Primary development and testing target. Packages: `.deb`, `.rpm`, `.AppImage`.
@@ -194,14 +194,14 @@ cargo tauri dev
 
 ## Configuration
 
-Lotion-rs stores its configuration at `~/.config/lotion-rs/config.toml`. The file is created automatically on first run with sensible defaults.
+Notion stores its configuration at `~/.config/notion/config.toml`. The file is created automatically on first run with sensible defaults.
 
 ```toml
 # Active UI theme
 active_theme = "dracula"
 
 # Optional: path to a custom CSS file to inject into the Notion interface
-# custom_css_path = "/home/user/.config/lotion-rs/my-theme.css"
+# custom_css_path = "/home/user/.config/notion/my-theme.css"
 
 # Whether to restore open tabs on next launch
 restore_tabs = true

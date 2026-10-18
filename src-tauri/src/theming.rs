@@ -71,8 +71,8 @@ impl<R: Runtime> ThemingEngine<R> for ThemeManager {
             return "".to_string();
         }
         format!("(function() {{
-            const style = document.getElementById('lotion-theme-style') || document.createElement('style');
-            style.id = 'lotion-theme-style';
+            const style = document.getElementById('notion-theme-style') || document.createElement('style');
+            style.id = 'notion-theme-style';
             style.textContent = `{}`;
             if (!style.parentElement) document.head.appendChild(style);
         }})();", vars)
@@ -93,8 +93,8 @@ impl<R: Runtime> ThemingEngine<R> for ThemeManager {
                             .replace('`', "\\`")
                             .replace('\\', "\\\\");
                         return format!("(function() {{
-                            const style = document.getElementById('lotion-custom-style') || document.createElement('style');
-                            style.id = 'lotion-custom-style';
+                            const style = document.getElementById('notion-custom-style') || document.createElement('style');
+                            style.id = 'notion-custom-style';
                             style.textContent = `{}`;
                             if (!style.parentElement) document.head.appendChild(style);
                         }})();", escaped_css);

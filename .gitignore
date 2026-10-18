@@ -25,6 +25,7 @@ Cargo.lock
 src-tauri/bin/
 src-tauri/gen/
 src-tauri/lib/
+src-tauri/.cargo/lib/
 src-tauri/target/
 tmp/
 

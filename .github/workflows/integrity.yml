@@ -39,7 +39,7 @@ jobs:
             "src-tauri/assets/icon.ico"
             "src-tauri/assets/icon.icns"
             "src-tauri/assets/Banner.png"
-            "src-tauri/assets/lotion.desktop"
+            "src-tauri/assets/notion.desktop"
           )
           for asset in "${assets[@]}"; do
             if [ -f "$asset" ]; then
@@ -104,8 +104,8 @@ jobs:
       # ── desktop file is well-formed ───────────────────────────
       - name: Validate .desktop file
         run: |
-          echo "==> Validating lotion.desktop..."
-          DESKTOP="src-tauri/assets/lotion.desktop"
+          echo "==> Validating notion.desktop..."
+          DESKTOP="src-tauri/assets/notion.desktop"
           for field in "Name=" "Exec=" "Icon=" "Type=" "Categories="; do
             if grep -q "^${field}" "$DESKTOP"; then
               echo "  ✓ $field present"

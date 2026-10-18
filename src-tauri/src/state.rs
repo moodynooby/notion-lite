@@ -20,12 +20,10 @@ pub struct EncryptedState {
     pub nonce: String, // Base64 encoded nonce
 }
 
-fn get_encryption_key(app_secret: &[u8]) -> Key<Aes256Gcm> {
-    // Use a stable, but unique per-machine, salt for PBKDF2.
-    // Combining the application name and config directory path provides this.
+fn get_encryption_key_for_salt(app_secret: &[u8], app_dir_name: &str) -> Key<Aes256Gcm> {
     let salt_source = dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("lotion-rs")
+        .join(app_dir_name)
         .to_string_lossy()
         .into_owned();
 
@@ -37,6 +35,10 @@ fn get_encryption_key(app_secret: &[u8]) -> Key<Aes256Gcm> {
         &mut key_bytes,
     );
     key_bytes
+}
+
+fn get_encryption_key(app_secret: &[u8]) -> Key<Aes256Gcm> {
+    get_encryption_key_for_salt(app_secret, "notion")
 }
 
 fn encrypt_data(data: &[u8], key: &Key<Aes256Gcm>) -> Result<(Vec<u8>, Vec<u8>), String> {
@@ -113,11 +115,11 @@ impl AppState {
         }
     }
 
-    /// Returns the state file path (~/.config/lotion-rs/state.json)
+    /// Returns the state file path (~/.config/notion/state.json)
     fn state_path() -> std::path::PathBuf {
         dirs::config_dir()
             .unwrap_or_else(|| std::path::PathBuf::from("."))
-            .join("lotion-rs")
+            .join("notion")
             .join("state.json")
     }
 
@@ -146,7 +148,18 @@ impl AppState {
 
     /// Load application state from disk.
     pub fn load_from_disk(app_secret: &[u8]) -> Option<Self> {
-        let path = Self::state_path();
+        let mut path = Self::state_path();
+        if !path.exists() {
+            // Check legacy lotion-rs path
+            let legacy_path = dirs::config_dir()
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .join("lotion-rs")
+                .join("state.json");
+            if legacy_path.exists() {
+                path = legacy_path;
+            }
+        }
+
         if path.exists() {
             let key = get_encryption_key(app_secret);
             match std::fs::read_to_string(&path) {
@@ -168,7 +181,14 @@ impl AppState {
                             }
                         };
 
-                        match decrypt_data(&decoded_data, &decoded_nonce, &key) {
+                        // First try with notion key, fallback to legacy lotion-rs key if needed
+                        let decrypt_res = decrypt_data(&decoded_data, &decoded_nonce, &key)
+                            .or_else(|_| {
+                                let legacy_key = get_encryption_key_for_salt(app_secret, "lotion-rs");
+                                decrypt_data(&decoded_data, &decoded_nonce, &legacy_key)
+                            });
+
+                        match decrypt_res {
                             Ok(plaintext_bytes) => {
                                 match String::from_utf8(plaintext_bytes) {
                                     Ok(plaintext) => match serde_json::from_str::<AppState>(&plaintext) {
@@ -186,8 +206,6 @@ impl AppState {
                     }
 
                     // If encrypted load failed, try to load as plaintext (for backward compatibility)
-                    // This branch will be executed if deserialization to EncryptedState fails,
-                    // which means it's likely an old unencrypted file.
                     if let Ok(state) = serde_json::from_str::<AppState>(&contents) {
                         log::warn!("Loaded unencrypted AppState from {}. Please re-save to encrypt.", path.display());
                         return Some(state);

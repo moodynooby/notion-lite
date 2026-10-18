@@ -4,12 +4,14 @@ use std::path::PathBuf;
 
 /// User-facing configuration persisted to disk as TOML.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LotionConfig {
+pub struct NotionConfig {
     pub active_theme: String,
     pub custom_css_path: Option<PathBuf>,
     pub restore_tabs: bool,
     pub window: WindowConfig,
 }
+
+pub type LotionConfig = NotionConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WindowConfig {
@@ -20,7 +22,7 @@ pub struct WindowConfig {
     pub maximized: bool,
 }
 
-impl Default for LotionConfig {
+impl Default for NotionConfig {
     fn default() -> Self {
         Self {
             active_theme: "dracula".to_string(),
@@ -37,47 +39,65 @@ impl Default for LotionConfig {
     }
 }
 
-impl LotionConfig {
-    /// Returns the config directory path (~/.config/lotion-rs/)
-    fn config_dir() -> PathBuf {
+impl NotionConfig {
+    /// Returns the config directory path (~/.config/notion/)
+    pub fn config_dir() -> PathBuf {
         dirs::config_dir()
             .unwrap_or_else(|| PathBuf::from("."))
-            .join("lotion-rs")
+            .join("notion")
     }
 
-    /// Returns the config file path (~/.config/lotion-rs/config.toml)
-    fn config_path() -> PathBuf {
+    /// Returns the config file path (~/.config/notion/config.toml)
+    pub fn config_path() -> PathBuf {
         Self::config_dir().join("config.toml")
     }
 
-    /// Migrate config from ~/.config/lotion to ~/.config/lotion-rs if needed
+    /// Migrate config from ~/.config/lotion-rs or ~/.config/lotion to ~/.config/notion if needed
     fn migrate_legacy_config() {
-        let old_dir = dirs::config_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("lotion");
         let new_dir = Self::config_dir();
+        if new_dir.exists() {
+            return;
+        }
 
-        if old_dir.exists() && !new_dir.exists() {
-            log::info!("Migrating legacy config from {} to {}", old_dir.display(), new_dir.display());
-            if let Err(e) = fs::create_dir_all(&new_dir) {
-                log::error!("Failed to create new config dir: {}", e);
-                return;
-            }
+        let base_config = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
+        let candidate_dirs = [
+            base_config.join("lotion-rs"),
+            base_config.join("lotion"),
+        ];
 
-            // Copy config.toml
-            let old_config = old_dir.join("config.toml");
-            if old_config.exists() {
-                if let Err(e) = fs::copy(&old_config, new_dir.join("config.toml")) {
-                    log::error!("Failed to migrate config.toml: {}", e);
+        for old_dir in &candidate_dirs {
+            if old_dir.exists() {
+                log::info!("Migrating legacy config from {} to {}", old_dir.display(), new_dir.display());
+                if let Err(e) = fs::create_dir_all(&new_dir) {
+                    log::error!("Failed to create new config dir: {}", e);
+                    return;
                 }
-            }
 
-            // Copy state.json
-            let old_state = old_dir.join("state.json");
-            if old_state.exists() {
-                if let Err(e) = fs::copy(&old_state, new_dir.join("state.json")) {
-                    log::error!("Failed to migrate state.json: {}", e);
+                // Copy config.toml
+                let old_config = old_dir.join("config.toml");
+                if old_config.exists() {
+                    if let Err(e) = fs::copy(&old_config, new_dir.join("config.toml")) {
+                        log::error!("Failed to migrate config.toml: {}", e);
+                    }
                 }
+
+                // Copy state.json
+                let old_state = old_dir.join("state.json");
+                if old_state.exists() {
+                    if let Err(e) = fs::copy(&old_state, new_dir.join("state.json")) {
+                        log::error!("Failed to migrate state.json: {}", e);
+                    }
+                }
+
+                // Copy secret_key if present
+                let old_secret = old_dir.join("secret_key");
+                if old_secret.exists() {
+                    if let Err(e) = fs::copy(&old_secret, new_dir.join("secret_key")) {
+                        log::error!("Failed to migrate secret_key: {}", e);
+                    }
+                }
+
+                break;
             }
         }
     }
@@ -89,8 +109,8 @@ impl LotionConfig {
         if path.exists() {
             match fs::read_to_string(&path) {
                 Ok(contents) => {
-                    match toml::from_str::<LotionConfig>(&contents) {
-                        Ok(mut config) => { // 'mut' is needed to modify config.custom_css_path
+                    match toml::from_str::<NotionConfig>(&contents) {
+                        Ok(mut config) => {
                             if let Some(ref path) = config.custom_css_path {
                                 let custom_themes_dir = Self::config_dir().join("custom_themes");
                                 if !path.starts_with(&custom_themes_dir) {
@@ -111,7 +131,7 @@ impl LotionConfig {
                             log::warn!("Failed to parse config, using defaults: {}", e);
                         }
                     }
-                }, // End of Ok(contents) arm
+                },
                 Err(e) => {
                     log::warn!("Failed to read config file, using defaults: {}", e);
                 }
@@ -143,14 +163,13 @@ impl LotionConfig {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::fs;
 
     #[test]
     fn test_config_migration() {
         let temp_base = tempfile::tempdir().unwrap();
-        let old_dir = temp_base.path().join("lotion");
-        let new_dir = temp_base.path().join("lotion-rs");
+        let old_dir = temp_base.path().join("lotion-rs");
+        let new_dir = temp_base.path().join("notion");
         
         fs::create_dir_all(&old_dir).unwrap();
         fs::write(old_dir.join("config.toml"), "active_theme = 'nord'").unwrap();

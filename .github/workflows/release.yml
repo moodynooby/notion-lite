@@ -84,9 +84,9 @@ jobs:
         run: |
           mkdir -p staging
           # Rename to static names for permanent README links
-          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.deb" -exec cp {} staging/lotion-rs_amd64.deb \;
-          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.rpm" -exec cp {} staging/lotion-rs.rpm \;
-          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.AppImage" -exec cp {} staging/lotion-rs.AppImage \;
+          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.deb" -exec cp {} staging/notion_amd64.deb \;
+          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.rpm" -exec cp {} staging/notion.rpm \;
+          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.AppImage" -exec cp {} staging/notion.AppImage \;
           ls -lh staging/
 
       - uses: actions/upload-artifact@v4
@@ -146,8 +146,8 @@ jobs:
       - name: Stage bundles
         run: |
           mkdir -p staging
-          find src-tauri/target/x86_64-apple-darwin/release/bundle -name "*.dmg" -exec cp {} staging/lotion-rs-x64.dmg \;
-          find src-tauri/target/x86_64-apple-darwin/release/bundle -name "*.app.tar.gz" -exec cp {} staging/lotion-rs-macos-x64.app.tar.gz \;
+          find src-tauri/target/x86_64-apple-darwin/release/bundle -name "*.dmg" -exec cp {} staging/notion-x64.dmg \;
+          find src-tauri/target/x86_64-apple-darwin/release/bundle -name "*.app.tar.gz" -exec cp {} staging/notion-macos-x64.app.tar.gz \;
           ls -lh staging/
 
       - uses: actions/upload-artifact@v4
@@ -207,8 +207,8 @@ jobs:
       - name: Stage bundles
         run: |
           mkdir -p staging
-          find src-tauri/target/aarch64-apple-darwin/release/bundle -name "*.dmg" -exec cp {} staging/lotion-rs-arm64.dmg \;
-          find src-tauri/target/aarch64-apple-darwin/release/bundle -name "*.app.tar.gz" -exec cp {} staging/lotion-rs-macos-arm64.app.tar.gz \;
+          find src-tauri/target/aarch64-apple-darwin/release/bundle -name "*.dmg" -exec cp {} staging/notion-arm64.dmg \;
+          find src-tauri/target/aarch64-apple-darwin/release/bundle -name "*.app.tar.gz" -exec cp {} staging/notion-macos-arm64.app.tar.gz \;
           ls -lh staging/
 
       - uses: actions/upload-artifact@v4
@@ -256,7 +256,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p staging
-          find src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis -name "*.exe" -exec cp {} staging/lotion-rs-setup.exe \;
+          find src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis -name "*.exe" -exec cp {} staging/notion-setup.exe \;
           ls -lh staging/
 
       - uses: actions/upload-artifact@v4
@@ -423,7 +423,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.version }}
-          name: "lotion-rs ${{ steps.tag.outputs.version }}"
+          name: "Notion ${{ steps.tag.outputs.version }}"
           body_path: CHANGELOG_RELEASE.md
           draft: false
           prerelease: ${{ contains(steps.tag.outputs.version, '-') }}
