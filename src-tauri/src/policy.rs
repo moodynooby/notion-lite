@@ -41,6 +41,9 @@ impl PolicyManager {
 impl PolicyEnforcer for PolicyManager {
     fn validate_url(&self, url: &str) -> bool {
         log::debug!("PolicyManager: Validating URL: {}", url);
+        if url == "about:blank" {
+            return true;
+        }
         // Parse URL and check if host is in allowed_domains
         if let Ok(parsed_url) = url::Url::parse(url) {
             if parsed_url.scheme() != "https" {

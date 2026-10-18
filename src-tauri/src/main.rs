@@ -9,6 +9,7 @@ use notion::spellcheck::SpellcheckManager;
 use notion::state::AppState;
 use std::sync::Arc;
 use tauri::Manager;
+use tauri_plugin_updater::UpdaterExt;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 #[cfg(target_family = "unix")]
@@ -79,6 +80,8 @@ fn is_trusted_origin<R: tauri::Runtime>(webview: &tauri::Webview<R>) -> bool {
     let trusted_origins = vec![
         "https://www.notion.so",
         "https://notion.so",
+        "https://www.notion.com",
+        "https://notion.com",
         "tauri://localhost", // For local development/devtools
     ];
 
@@ -285,6 +288,43 @@ fn close_window(webview: tauri::Webview<tauri::Wry>, window_id: String, app: tau
     }
 }
 
+async fn check_for_updates<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+    log::info!("Auto-updater: Checking for updates from endpoint...");
+    let updater = app.updater()?;
+    if let Some(update) = updater.check().await? {
+        log::info!(
+            "Auto-updater: Update available! Version {} -> {}",
+            update.current_version,
+            update.version
+        );
+        let mut downloaded: usize = 0;
+        update
+            .download_and_install(
+                |chunk_length, content_length| {
+                    downloaded += chunk_length;
+                    log::info!("Auto-updater: Downloaded {} of {:?}", downloaded, content_length);
+                },
+                || {
+                    log::info!("Auto-updater: Download complete, applying update...");
+                },
+            )
+            .await?;
+        log::info!("Auto-updater: Update installed successfully. Relaunching application...");
+        app.restart();
+    } else {
+        log::info!("Auto-updater: Application is up to date.");
+        Ok(false)
+    }
+}
+
+#[tauri::command]
+async fn check_for_updates_command(app: tauri::AppHandle<tauri::Wry>) -> Result<bool, String> {
+    log::info!("Manual update check command invoked");
+    check_for_updates(app).await.map_err(|e| e.to_string())
+}
+
 fn main() {
     #[cfg(target_os = "linux")]
     {
@@ -335,6 +375,7 @@ fn main() {
 
     // Tauri Application Context
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -355,7 +396,8 @@ fn main() {
             new_tab,
             minimize_window,
             maximize_window,
-            close_window
+            close_window,
+            check_for_updates_command
         ])
         .setup(move |app| {
             // Initialize modules in Tauri state FIRST as trait objects where expected
@@ -414,6 +456,15 @@ fn main() {
                     })
                     .build(app);
             }
+
+            // Background auto-updater task: checks for updates 5s after launch
+            let updater_handle = handle.clone();
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                if let Err(e) = check_for_updates(updater_handle).await {
+                    log::warn!("Auto-updater background check failed: {}", e);
+                }
+            });
 
             log::info!("Tauri background layer initialized.");
             Ok(())

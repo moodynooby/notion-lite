@@ -18,6 +18,13 @@ pub fn create_main_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         .separator()
         .item(&MenuItem::with_id(
             app,
+            "check_updates",
+            "Check for Updates...",
+            true,
+            None::<&str>,
+        )?)
+        .item(&MenuItem::with_id(
+            app,
             "preferences",
             "Preferences",
             true,
@@ -138,21 +145,151 @@ pub fn create_main_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         match event.id().as_ref() {
             "nav_back" => {
                 log::info!("Menu: Back");
+                if let Some(tab_id) = get_active_tab_id(app_handle) {
+                    if let Some(wv) = app_handle.get_webview(&tab_id) {
+                        let _ = wv.eval("window.history.back()");
+                    }
+                }
             }
             "nav_forward" => {
                 log::info!("Menu: Forward");
+                if let Some(tab_id) = get_active_tab_id(app_handle) {
+                    if let Some(wv) = app_handle.get_webview(&tab_id) {
+                        let _ = wv.eval("window.history.forward()");
+                    }
+                }
             }
-            "nav_refresh" => {
+            "nav_refresh" | "reload" => {
                 log::info!("Menu: Refresh");
+                if let Some(tab_id) = get_active_tab_id(app_handle) {
+                    if let Some(wv) = app_handle.get_webview(&tab_id) {
+                        let _ = wv.eval("window.location.reload()");
+                    }
+                }
             }
             "nav_home" => {
                 log::info!("Menu: Home");
+                if let Some(tab_id) = get_active_tab_id(app_handle) {
+                    if let Some(wv) = app_handle.get_webview(&tab_id) {
+                        let _ = wv.eval("window.location.href = 'https://www.notion.so'");
+                    }
+                }
             }
             "preferences" => {
                 log::info!("Menu: Preferences");
+                use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+                use tauri_plugin_shell::ShellExt;
+
+                let active_theme = if let Some(theming) =
+                    app_handle.try_state::<Arc<dyn crate::traits::ThemingEngine<R>>>()
+                {
+                    theming.get_active_theme()
+                } else {
+                    "default".to_string()
+                };
+
+                let config_dir = crate::config::NotionConfig::config_dir();
+                let config_path = crate::config::NotionConfig::config_path();
+                let menu_visible = if let Some(w) = app_handle.get_window("main") {
+                    w.is_menu_visible().unwrap_or(true)
+                } else {
+                    true
+                };
+
+                let message = format!(
+                    "Notion Lite Preferences\n\n\
+                    • Theme: {}\n\
+                    • Menu Bar Visible: {}\n\
+                    • Config Directory: {}\n\
+                    • Config File: {}\n\n\
+                    Keyboard Shortcuts:\n\
+                    • Ctrl+Shift+M: Toggle Menu Bar Visibility\n\
+                    • Ctrl+,: Open Preferences\n\
+                    • Alt+Left / Alt+Right: Back / Forward\n\
+                    • Ctrl+R / F5: Refresh\n\
+                    • Ctrl+H: Home (Notion.so)\n\
+                    • F12: Toggle Developer Tools\n\n\
+                    Click OK to open the configuration directory.",
+                    active_theme,
+                    if menu_visible { "Yes" } else { "No" },
+                    config_dir.display(),
+                    config_path.display()
+                );
+
+                let handle_clone = app_handle.clone();
+                let config_dir_str = config_dir.to_string_lossy().to_string();
+                app_handle
+                    .dialog()
+                    .message(message)
+                    .title("Preferences")
+                    .kind(MessageDialogKind::Info)
+                    .show(move |confirmed| {
+                        if confirmed {
+                            #[allow(deprecated)]
+                            let _ = handle_clone.shell().open(config_dir_str, None);
+                        }
+                    });
+            }
+            "toggle_menu_bar" => {
+                log::info!("Menu: Toggle Menu Bar");
+                if let Some(w) = app_handle.get_window("main") {
+                    match w.is_menu_visible() {
+                        Ok(true) => {
+                            let _ = w.hide_menu();
+                        }
+                        Ok(false) => {
+                            let _ = w.show_menu();
+                        }
+                        Err(e) => {
+                            log::warn!("Failed to check menu visibility: {}", e);
+                        }
+                    }
+                }
             }
             "toggle_dev_tools" => {
-                log::info!("Menu: Toggle Developer Tools (disabled in release)");
+                log::info!("Menu: Toggle Developer Tools");
+                if let Some(tab_id) = get_active_tab_id(app_handle) {
+                    if let Some(wv) = app_handle.get_webview(&tab_id) {
+                        let _ = wv.open_devtools();
+                    }
+                }
+            }
+            "check_updates" => {
+                log::info!("Menu: Check for Updates requested");
+                let handle = app_handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    use tauri_plugin_updater::UpdaterExt;
+                    match handle.updater() {
+                        Ok(updater) => match updater.check().await {
+                            Ok(Some(update)) => {
+                                log::info!("Update available: v{}", update.version);
+                                let mut downloaded: usize = 0;
+                                let _ = update
+                                    .download_and_install(
+                                        |chunk_length, content_length| {
+                                            downloaded += chunk_length;
+                                            log::info!("Downloaded {} of {:?}", downloaded, content_length);
+                                        },
+                                        || {
+                                            log::info!("Update download complete, installing...");
+                                        },
+                                    )
+                                    .await;
+                                log::info!("Update installed. Restarting...");
+                                handle.restart();
+                            }
+                            Ok(None) => {
+                                log::info!("App is up to date.");
+                            }
+                            Err(e) => {
+                                log::warn!("Update check failed: {}", e);
+                            }
+                        },
+                        Err(e) => {
+                            log::warn!("Failed to get updater: {}", e);
+                        }
+                    }
+                });
             }
             theme_id if theme_id.starts_with("theme_") => {
                 let theme_name = theme_id.replace("theme_", "");
@@ -192,4 +329,16 @@ pub fn create_main_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     });
 
     Ok(())
+}
+
+fn get_active_tab_id<R: Runtime>(app: &AppHandle<R>) -> Option<String> {
+    if let Some(state_lock) =
+        app.try_state::<Arc<tokio::sync::Mutex<crate::state::AppState>>>()
+    {
+        let app_state = state_lock.blocking_lock();
+        if let Some(w) = app_state.windows.get("main") {
+            return w.active_tab_id.clone().or_else(|| w.tab_ids.last().cloned());
+        }
+    }
+    None
 }

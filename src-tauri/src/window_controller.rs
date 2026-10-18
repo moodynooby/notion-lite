@@ -12,7 +12,8 @@ impl<R: Runtime> WindowController<R> {
         let mut builder = WindowBuilder::new(app, "main")
             .title("Notion Lite")
             .inner_size(1200.0, 768.0)
-            .decorations(false); // Custom injected Mac-like titlebar handles this now
+            .decorations(true)
+            .resizable(true);
 
         if let Some(icon) = app.default_window_icon() {
             builder = builder.icon(icon.clone())?;
@@ -163,19 +164,33 @@ impl<R: Runtime> WindowController<R> {
                 window_state.tab_ids.clear();
 
                 for old_id in &old_tab_ids {
-                    if let Some(tab_state) = app_state.tabs.get(old_id) {
+                    if let Some(tab_state) = app_state.tabs.remove(old_id) {
                         let url = tab_state.url.clone();
-                        // Drop the borrow of app_state so we can call create_tab (which might use it)
-                        // and re-borrow window_state to update it.
-                        // Actually, create_tab doesn't need a lock on app_state, but we need to update window_state.
+                        let title = tab_state.title.clone();
+                        let is_pinned = tab_state.is_pinned;
                         let new_tab_id = tab_manager.create_tab(app, window_label, &url)?;
 
-                        // Re-fetch window_state to avoid borrow conflict
                         if let Some(ws) = app_state.windows.get_mut(window_label) {
                             ws.tab_ids.push(new_tab_id.clone());
+                            ws.active_tab_id = Some(new_tab_id.clone());
                         }
+                        app_state.tabs.insert(
+                            new_tab_id.clone(),
+                            crate::state::TabState {
+                                id: new_tab_id.clone(),
+                                title,
+                                url,
+                                is_active: true,
+                                is_pinned,
+                            },
+                        );
                         let _ = tab_manager.show_tab(&new_tab_id);
                         tabs_restored = true;
+                    }
+                }
+                if tabs_restored {
+                    if let Some(app_secret_state) = app.try_state::<Arc<Vec<u8>>>() {
+                        let _ = app_state.save_to_disk(app_secret_state.inner().as_slice());
                     }
                 }
             }
@@ -205,6 +220,9 @@ impl<R: Runtime> WindowController<R> {
                     is_pinned: false,
                 },
             );
+            if let Some(app_secret_state) = app.try_state::<Arc<Vec<u8>>>() {
+                let _ = app_state.save_to_disk(app_secret_state.inner().as_slice());
+            }
 
             let _ = tab_manager.show_tab(&tab_id);
         }

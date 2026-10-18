@@ -44,13 +44,17 @@ impl<R: Runtime> TabController<R> {
             create_secure_webview_builder(app, &tab_id, &url, window_id, policy.clone());
 
         let inner_size = window.inner_size()?;
-        let width = if inner_size.width > 0 { inner_size.width as f64 } else { 1200.0 };
-        let height = if inner_size.height > 0 { inner_size.height as f64 } else { 768.0 };
+        let size = if inner_size.width > 0 && inner_size.height > 0 {
+            tauri::Size::Physical(inner_size)
+        } else {
+            tauri::Size::Logical(tauri::LogicalSize::new(1200.0, 768.0))
+        };
         let webview = window.add_child(
             webview_builder,
             tauri::LogicalPosition::new(0.0, 0.0),
-            tauri::LogicalSize::new(width, height),
+            size,
         )?;
+        let _ = webview.set_auto_resize(true);
         let _ = webview.show();
 
         log::info!("Created tab webview: {} in window: {}", tab_id, window_id);
@@ -84,176 +88,9 @@ impl<R: Runtime> TabController<R> {
                     subtree: true, characterData: true, childList: true
                 }});
 
-                // 2. Inject Native-feeling Window Controls (Titlebar)
-                window.addEventListener('DOMContentLoaded', () => {{
-                    const titlebar = document.createElement('div');
-                    titlebar.id = 'notion-custom-titlebar';
-                    titlebar.setAttribute('data-tauri-drag-region', '');
-                    titlebar.style.cssText = `
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 38px;
-                        z-index: 999999;
-                        display: flex;
-                        align-items: center;
-                        padding-left: 12px;
-                        pointer-events: none;
-                        background: inherit;
-                        border-bottom: 1px solid rgba(0,0,0,0.05);
-                    `;
-
-                    // Push the Notion sidebar down slightly so it doesn't overlap the buttons
-                    const style = document.createElement('style');
-                    style.textContent = `
-                        .notion-sidebar-container {{ margin-top: 38px !important; }}
-                        .notion-topbar {{ padding-left: 80px !important; }}
-                        .notion-custom-tab {{
-                            padding: 4px 12px;
-                            font-size: 12px;
-                            border-radius: 6px 6px 0 0;
-                            cursor: pointer;
-                            display: flex;
-                            align-items: center;
-                            gap: 8px;
-                            max-width: 150px;
-                            overflow: hidden;
-                            white-space: nowrap;
-                            text-overflow: ellipsis;
-                            background: rgba(0,0,0,0.05);
-                            border: 1px solid rgba(0,0,0,0.1);
-                            border-bottom: none;
-                            pointer-events: auto;
-                        }}
-                        .notion-custom-tab.active {{
-                            background: white;
-                            font-weight: 500;
-                        }}
-                        .notion-custom-tab-close {{
-                            font-size: 14px;
-                            opacity: 0.5;
-                            transition: opacity 0.2s;
-                        }}
-                        .notion-custom-tab-close:hover {{
-                            opacity: 1;
-                        }}
-                    `;
-                    document.head.appendChild(style);
-
-                    const btnContainer = document.createElement('div');
-                    btnContainer.style.cssText = `
-                        display: flex;
-                        gap: 8px;
-                        align-items: center;
-                        pointer-events: auto;
-                    `;
-
-                    const createBtn = (color, clickHandler, label = "") => {{
-                        const btn = document.createElement('div');
-                        btn.style.cssText = `
-                            width: 12px; height: 12px;
-                            border-radius: 50%;
-                            background-color: ${{color}};
-                            cursor: pointer;
-                            border: 1px solid rgba(0,0,0,0.1);
-                            display: flex; align-items: center; justify-content: center;
-                            font-size: 8px; font-family: sans-serif;
-                        `;
-                        if (label) btn.innerText = label;
-                        btn.addEventListener('click', (e) => {{
-                            e.stopPropagation();
-                            clickHandler();
-                        }});
-                        return btn;
-                    }};
-
-                    const closeBtn = createBtn('#ff5f56', () => {{
-                        if (window.__TAURI__) {{
-                            window.__TAURI__.invoke('close_window', {{ windowId: '{1}' }});
-                        }}
-                    }});
-
-                    const minBtn = createBtn('#ffbd2e', () => {{
-                        if (window.__TAURI__) {{
-                            window.__TAURI__.invoke('minimize_window', {{ windowId: '{1}' }});
-                        }}
-                    }});
-
-                    const maxBtn = createBtn('#27c93f', () => {{
-                        if (window.__TAURI__) {{
-                            window.__TAURI__.invoke('maximize_window', {{ windowId: '{1}' }});
-                        }}
-                    }});
-
-                    btnContainer.appendChild(closeBtn);
-                    btnContainer.appendChild(minBtn);
-                    btnContainer.appendChild(maxBtn);
-
-                    const spacer = document.createElement('div');
-                    spacer.style.width = '24px';
-                    btnContainer.appendChild(spacer);
-
-                    const tabList = document.createElement('div');
-                    tabList.style.cssText = `
-                        display: flex;
-                        gap: 4px;
-                        align-items: flex-end;
-                        height: 100%;
-                        padding-top: 8px;
-                        pointer-events: auto;
-                    `;
-
-                    const renderTabs = async () => {{
-                        if (!window.__TAURI__) return;
-                        const tabs = await window.__TAURI__.invoke('get_window_tabs', {{ windowId: '{1}' }});
-                        tabList.innerHTML = '';
-                        tabs.forEach(t => {{
-                            const tabEl = document.createElement('div');
-                            tabEl.className = 'notion-custom-tab' + (t.id === tabId ? ' active' : '');
-                            tabEl.innerText = t.title || 'Notion';
-
-                            const closeX = document.createElement('span');
-                            closeX.className = 'notion-custom-tab-close';
-                            closeX.innerText = ' ×';
-                            closeX.onclick = (e) => {{
-                                e.stopPropagation();
-                                window.__TAURI__.invoke('close_tab', {{ tabId: t.id }});
-                            }};
-
-                            tabEl.appendChild(closeX);
-                            tabEl.onclick = () => {{
-                                if (t.id !== tabId) {{
-                                    window.__TAURI__.invoke('switch_tab', {{ tabId: t.id }});
-                                }}
-                            }};
-                            tabList.appendChild(tabEl);
-                        }});
-
-                        const newTab = createBtn('#27c93f', () => {{
-                            if (window.__TAURI__) {{
-                                window.__TAURI__.invoke('new_tab', {{ windowId: '{1}' }});
-                            }}
-                        }}, '+');
-                        newTab.style.marginLeft = '8px';
-                        newTab.style.marginBottom = '6px';
-                        tabList.appendChild(newTab);
-                    }};
-
-                    btnContainer.appendChild(tabList);
-                    titlebar.appendChild(btnContainer);
-                    document.body.appendChild(titlebar);
-
-                    renderTabs();
-                    // Event-driven tab refresh on window focus and visibility change (avoids constant timer polling)
-                    window.addEventListener('focus', renderTabs);
-                    document.addEventListener('visibilitychange', () => {{
-                        if (!document.hidden) renderTabs();
-                    }});
-                }});
             }})();
         "#,
-            tab_id, window_id
+            tab_id
         );
         let _ = webview.eval(&title_observer_js);
 
