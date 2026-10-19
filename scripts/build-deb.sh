@@ -8,7 +8,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 PKG_NAME="notion-lite"
-VERSION="${VERSION:-0.3.0}"
+if [ -z "${VERSION:-}" ]; then
+    VERSION=$(grep -m1 '^version = ' "${PROJECT_ROOT}/src-tauri/Cargo.toml" | cut -d '"' -f2 || echo "0.3.25")
+fi
 
 # Architecture detection
 HOST_ARCH="$(uname -m)"
@@ -97,49 +99,11 @@ Description: Native lightweight client for Notion.so
  sandboxing, multi-tab interface, and custom theming.
 EOF
 
-# 6. Generate postinst (idempotent, clean deb822 migration, cache update)
-cat << 'EOF' > "$STAGING_DIR/DEBIAN/postinst"
-#!/bin/sh
-set -e
+# 6. Install postinst (idempotent, clean deb822 migration, cache update)
+install -m 755 "${PROJECT_ROOT}/src-tauri/scripts/postinst.sh" "$STAGING_DIR/DEBIAN/postinst"
 
-# Clean up legacy .list to prevent duplicate warnings (per Section 1.2 & 5)
-rm -f /etc/apt/sources.list.d/notion-lite.list /etc/apt/sources.list.d/notion.list /etc/apt/sources.list.d/lotion-rs.list
-
-# Refresh icon cache and desktop database so icons display immediately
-if which gtk-update-icon-cache >/dev/null 2>&1; then
-    gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
-fi
-if which update-desktop-database >/dev/null 2>&1; then
-    update-desktop-database -q /usr/share/applications || true
-fi
-
-exit 0
-EOF
-chmod 755 "$STAGING_DIR/DEBIAN/postinst"
-
-# 7. Generate postrm
-cat << 'EOF' > "$STAGING_DIR/DEBIAN/postrm"
-#!/bin/sh
-set -e
-
-case "$1" in
-    remove|purge)
-        if which gtk-update-icon-cache >/dev/null 2>&1; then
-            gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
-        fi
-        if which update-desktop-database >/dev/null 2>&1; then
-            update-desktop-database -q /usr/share/applications || true
-        fi
-        ;;
-    upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
-        ;;
-    *)
-        ;;
-esac
-
-exit 0
-EOF
-chmod 755 "$STAGING_DIR/DEBIAN/postrm"
+# 7. Install postrm
+install -m 755 "${PROJECT_ROOT}/src-tauri/scripts/postrm.sh" "$STAGING_DIR/DEBIAN/postrm"
 
 # 8. Build .deb package
 mkdir -p "$DIST_DIR"

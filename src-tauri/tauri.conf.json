@@ -1,6 +1,6 @@
 {
     "productName": "Notion Lite",
-    "version": "0.3.0",
+    "version": "0.3.25",
     "identifier": "io.notion-lite.desktop",
     "build": {
         "frontendDist": "assets"
@@ -11,7 +11,7 @@
                 "https://github.com/moodynooby/Notion/releases/latest/download/latest.json"
             ],
             "dialog": true,
-            "pubkey": "RWQpCdih9OnWkf2sTicrpau6XAB8D8xKOqoMNnTcbAZfJ14SN5bCFkl/"
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY0M0IwQkQxMDlFNjc1REMKUldUY2RlWUowUXM3WkhtYmdWZVF1WGpFSzdWNGkxc3hzRzZYclM3V3lzb3d0ZW1pdlhEQjNJWXkK"
         }
     },
     "app": {

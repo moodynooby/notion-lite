@@ -134,6 +134,11 @@ jobs:
       - name: Install Tauri CLI
         run: cargo binstall --no-confirm tauri-cli@^2
 
+      # ── Sync version if building a tag ──────────────────────────
+      - name: Sync version from tag
+        shell: bash
+        run: ./scripts/sync-version.sh "${GITHUB_REF_NAME}"
+
       # ── Build ───────────────────────────────────────────────────
       - name: Build Tauri bundles
         working-directory: src-tauri

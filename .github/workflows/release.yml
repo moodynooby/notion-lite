@@ -72,6 +72,10 @@ jobs:
       - uses: cargo-bins/cargo-binstall@main
       - run: cargo binstall --no-confirm tauri-cli@^2
 
+      - name: Sync version from tag
+        shell: bash
+        run: ./scripts/sync-version.sh "${{ github.event.inputs.tag || github.ref_name }}"
+
       - name: Build bundles
         working-directory: src-tauri
         run: |
@@ -142,6 +146,10 @@ jobs:
       - uses: cargo-bins/cargo-binstall@main
       - run: cargo binstall --no-confirm tauri-cli@^2
 
+      - name: Sync version from tag
+        shell: bash
+        run: ./scripts/sync-version.sh "${{ github.event.inputs.tag || github.ref_name }}"
+
       - name: Build bundles
         working-directory: src-tauri
         run: |
@@ -210,6 +218,10 @@ jobs:
       - uses: cargo-bins/cargo-binstall@main
       - run: cargo binstall --no-confirm tauri-cli@^2
 
+      - name: Sync version from tag
+        shell: bash
+        run: ./scripts/sync-version.sh "${{ github.event.inputs.tag || github.ref_name }}"
+
       - name: Build bundles
         working-directory: src-tauri
         run: |
@@ -277,6 +289,10 @@ jobs:
 
       - uses: cargo-bins/cargo-binstall@main
       - run: cargo binstall --no-confirm tauri-cli@^2
+
+      - name: Sync version from tag
+        shell: bash
+        run: ./scripts/sync-version.sh "${{ github.event.inputs.tag || github.ref_name }}"
 
       - name: Build bundles
         working-directory: src-tauri
