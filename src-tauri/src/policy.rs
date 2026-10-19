@@ -18,8 +18,11 @@ impl PolicyManager {
                 "www.notion.so".to_string(),
                 "notion.com".to_string(),
                 "www.notion.com".to_string(),
+                "app.notion.com".to_string(),
                 "msgstore.www.notion.so".to_string(),
                 "file.notion.so".to_string(),
+                "msgstore.www.notion.com".to_string(),
+                "file.notion.com".to_string(),
             ],
         }
     }
@@ -169,7 +172,10 @@ mod tests {
         assert!(policy.validate_url("https://www.notion.so"));
         assert!(policy.validate_url("https://www.notion.so/login"));
         assert!(policy.validate_url("https://notion.com/some-page"));
+        assert!(policy.validate_url("https://app.notion.com"));
+        assert!(policy.validate_url("https://app.notion.com/workspace-name"));
         assert!(policy.validate_url("https://msgstore.www.notion.so/v1/health"));
+        assert!(policy.validate_url("https://msgstore.www.notion.com/v1/health"));
 
         // OAuth providers allowed during login
         assert!(policy.validate_url("https://accounts.google.com/auth"));

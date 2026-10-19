@@ -169,9 +169,15 @@ pub fn create_main_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             }
             "nav_home" => {
                 log::info!("Menu: Home");
+                let home_url =
+                    if let Some(config) = app_handle.try_state::<crate::config::LotionConfig>() {
+                        config.get_start_url().to_string()
+                    } else {
+                        "https://app.notion.com".to_string()
+                    };
                 if let Some(tab_id) = get_active_tab_id(app_handle) {
                     if let Some(wv) = app_handle.get_webview(&tab_id) {
-                        let _ = wv.eval("window.location.href = 'https://www.notion.so'");
+                        let _ = wv.eval(format!("window.location.href = '{}'", home_url));
                     }
                 }
             }
@@ -218,17 +224,26 @@ pub fn create_main_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
 
                 let handle_clone = app_handle.clone();
                 let config_dir_str = config_dir.to_string_lossy().to_string();
-                app_handle
+                let config_file_str = config_path.to_string_lossy().to_string();
+
+                let mut dialog_builder = app_handle
                     .dialog()
                     .message(message)
                     .title("Preferences")
-                    .kind(MessageDialogKind::Info)
-                    .show(move |confirmed| {
-                        if confirmed {
-                            #[allow(deprecated)]
-                            let _ = handle_clone.shell().open(config_dir_str, None);
+                    .kind(MessageDialogKind::Info);
+
+                if let Some(w) = app_handle.get_window("main") {
+                    dialog_builder = dialog_builder.parent(&w);
+                }
+
+                dialog_builder.show(move |confirmed| {
+                    if confirmed {
+                        #[allow(deprecated)]
+                        if handle_clone.shell().open(&config_file_str, None).is_err() {
+                            let _ = handle_clone.shell().open(&config_dir_str, None);
                         }
-                    });
+                    }
+                });
             }
             "toggle_menu_bar" => {
                 log::info!("Menu: Toggle Menu Bar");

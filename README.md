@@ -216,6 +216,9 @@ active_theme = "dracula"
 # Whether to restore open tabs on next launch
 restore_tabs = true
 
+# Startup / dashboard URL to open (defaults to Notion's web app)
+# start_url = "https://app.notion.com"
+
 [window]
 width = 1200.0
 height = 800.0
@@ -227,6 +230,7 @@ maximized = false
 | `active_theme` | `"dracula"` | Name of the built-in theme to apply |
 | `custom_css_path` | `null` | Absolute path to a custom CSS file |
 | `restore_tabs` | `true` | Restore open tabs on launch |
+| `start_url` | `"https://app.notion.com"` | Default startup / dashboard page URL |
 | `window.width` | `1200` | Initial window width in pixels |
 | `window.height` | `800` | Initial window height in pixels |
 | `window.maximized` | `false` | Start maximised |

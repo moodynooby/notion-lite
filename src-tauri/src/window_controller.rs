@@ -199,7 +199,7 @@ impl<R: Runtime> WindowController<R> {
         }
 
         if !tabs_restored {
-            let notion_url = "https://www.notion.so";
+            let notion_url = config.get_start_url();
             log::info!(
                 "WindowController: Creating initial tab for Notion: {}",
                 notion_url

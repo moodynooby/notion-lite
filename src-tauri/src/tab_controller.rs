@@ -211,12 +211,15 @@ pub fn create_secure_webview_builder<R: Runtime>(
                             }
                         }
                         "tab:new" => {
-                            let notion_url = "https://www.notion.so";
+                            let notion_url = nav_app
+                                .try_state::<crate::config::LotionConfig>()
+                                .map(|c| c.get_start_url().to_string())
+                                .unwrap_or_else(|| "https://app.notion.com".to_string());
                             if let Some(orchestrator) =
                                 nav_app.try_state::<Arc<dyn crate::traits::TabOrchestrator<R>>>()
                             {
                                 if let Ok(new_id) =
-                                    orchestrator.inner().create_tab(&nav_app, window_id, notion_url)
+                                    orchestrator.inner().create_tab(&nav_app, window_id, &notion_url)
                                 {
                                     let _ = orchestrator.inner().show_tab(&new_id);
 

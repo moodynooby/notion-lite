@@ -83,21 +83,24 @@ fn get_or_create_app_secret() -> Result<Vec<u8>, Box<dyn std::error::Error>> {
 
 // Helper function to check if the command invocation origin is trusted
 fn is_trusted_origin<R: tauri::Runtime>(webview: &tauri::Webview<R>) -> bool {
-    let trusted_origins = [
-        "https://www.notion.so",
-        "https://notion.so",
-        "https://www.notion.com",
-        "https://notion.com",
-        "tauri://localhost", // For local development/devtools
-    ];
-
     if let Ok(url) = webview.url() {
-        let origin = format!("{}://{}", url.scheme(), url.host_str().unwrap_or_default());
-        let is_trusted = trusted_origins.iter().any(|o| origin.starts_with(o));
-        if !is_trusted {
-            log::warn!("Untrusted origin: {} attempted to invoke command.", origin);
+        if url.scheme() == "tauri" && url.host_str() == Some("localhost") {
+            return true;
         }
-        is_trusted
+        if url.scheme() == "https" {
+            if let Some(host) = url.host_str() {
+                if host == "notion.so"
+                    || host.ends_with(".notion.so")
+                    || host == "notion.com"
+                    || host.ends_with(".notion.com")
+                {
+                    return true;
+                }
+            }
+        }
+        let origin = format!("{}://{}", url.scheme(), url.host_str().unwrap_or_default());
+        log::warn!("Untrusted origin: {} attempted to invoke command.", origin);
+        false
     } else {
         log::warn!("Could not determine origin for command invocation (webview URL not found).");
         false
@@ -180,6 +183,7 @@ fn new_tab(
     webview: tauri::Webview<tauri::Wry>,
     window_id: String,
     orchestrator: tauri::State<'_, Arc<dyn notion::traits::TabOrchestrator<tauri::Wry>>>,
+    config: tauri::State<'_, NotionConfig>,
     state: tauri::State<'_, Arc<tokio::sync::Mutex<AppState>>>,
     app_secret_state: tauri::State<'_, Arc<Vec<u8>>>,
     app: tauri::AppHandle<tauri::Wry>,
@@ -188,7 +192,7 @@ fn new_tab(
         return; // Deny access for untrusted origins
     }
     log::info!("new_tab called for window: {}", window_id);
-    let notion_url = "https://www.notion.so";
+    let notion_url = config.get_start_url();
     if let Ok(new_id) = orchestrator.create_tab(&app, &window_id, notion_url) {
         let _ = orchestrator.show_tab(&new_id);
 

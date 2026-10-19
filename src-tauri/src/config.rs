@@ -8,6 +8,8 @@ pub struct NotionConfig {
     pub active_theme: String,
     pub custom_css_path: Option<PathBuf>,
     pub restore_tabs: bool,
+    #[serde(default)]
+    pub start_url: Option<String>,
     pub window: WindowConfig,
 }
 
@@ -29,6 +31,7 @@ impl Default for NotionConfig {
             active_theme: "dracula".to_string(),
             custom_css_path: None,
             restore_tabs: true,
+            start_url: Some("https://app.notion.com".to_string()),
             window: WindowConfig {
                 width: 1200.0,
                 height: 800.0,
@@ -41,6 +44,30 @@ impl Default for NotionConfig {
 }
 
 impl NotionConfig {
+    /// Returns the validated start URL, falling back to "https://app.notion.com"
+    pub fn get_start_url(&self) -> &str {
+        if let Some(ref url) = self.start_url {
+            if let Ok(parsed) = url::Url::parse(url) {
+                if parsed.scheme() == "https" {
+                    if let Some(host) = parsed.host_str() {
+                        if host == "notion.so"
+                            || host.ends_with(".notion.so")
+                            || host == "notion.com"
+                            || host.ends_with(".notion.com")
+                        {
+                            return url.as_str();
+                        }
+                    }
+                }
+            }
+            log::warn!(
+                "Configured start_url '{}' is not a valid Notion HTTPS URL. Falling back to https://app.notion.com.",
+                url
+            );
+        }
+        "https://app.notion.com"
+    }
+
     /// Returns the config directory path (~/.config/notion-lite/)
     pub fn config_dir() -> PathBuf {
         dirs::config_dir()
@@ -193,5 +220,33 @@ mod tests {
         assert!(new_dir.join("state.json").exists());
         let contents = fs::read_to_string(new_dir.join("config.toml")).unwrap();
         assert!(contents.contains("nord"));
+    }
+
+    #[test]
+    fn test_start_url_default_and_custom() {
+        let default_config = super::NotionConfig::default();
+        assert_eq!(default_config.get_start_url(), "https://app.notion.com");
+
+        // Custom start url on notion.com
+        let mut custom_config = default_config.clone();
+        custom_config.start_url = Some("https://app.notion.com/my-workspace/my-page".to_string());
+        assert_eq!(
+            custom_config.get_start_url(),
+            "https://app.notion.com/my-workspace/my-page"
+        );
+
+        // Custom start url on notion.so
+        custom_config.start_url = Some("https://www.notion.so/my-page".to_string());
+        assert_eq!(
+            custom_config.get_start_url(),
+            "https://www.notion.so/my-page"
+        );
+
+        // Malicious or invalid start_url falls back safely
+        custom_config.start_url = Some("https://evilnotion.com/login".to_string());
+        assert_eq!(custom_config.get_start_url(), "https://app.notion.com");
+
+        custom_config.start_url = Some("http://app.notion.com".to_string()); // Insecure HTTP
+        assert_eq!(custom_config.get_start_url(), "https://app.notion.com");
     }
 }
