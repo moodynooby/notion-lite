@@ -159,8 +159,11 @@ jobs:
           if [ -n "$SIGNING_KEY" ]; then
             export TAURI_SIGNING_PRIVATE_KEY="$SIGNING_KEY"
             export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$SIGNING_KEY_PWD"
+            cargo tauri build --target ${{ matrix.target }}
+          else
+            echo "Building unsigned bundles (SIGNING_KEY not set in secrets)..."
+            cargo tauri build --target ${{ matrix.target }} --config '{"bundle":{"createUpdaterArtifacts":false},"plugins":{"updater":{"pubkey":""}}}'
           fi
-          cargo tauri build --target ${{ matrix.target }}
         env:
           SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           SIGNING_KEY_PWD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
