@@ -117,15 +117,10 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Restore Cargo cache
-        uses: actions/cache@v4
+      - name: Setup Rust cache
+        uses: swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            src-tauri/target
-          key: build-${{ matrix.platform }}-${{ hashFiles('src-tauri/Cargo.lock') }}
-          restore-keys: build-${{ matrix.platform }}-
+          workspaces: src-tauri
 
       # ── Tauri CLI (cached via cargo-binstall for speed) ─────────
       - name: Install cargo-binstall
@@ -136,8 +131,18 @@ jobs:
 
       # ── Sync version if building a tag ──────────────────────────
       - name: Sync version from tag
-        shell: bash
-        run: ./scripts/sync-version.sh "${GITHUB_REF_NAME}"
+        run: |
+          node -e "
+            const fs = require('fs');
+            const v = process.argv[1].replace(/^v/, '');
+            if (/^\d+\.\d+\.\d+/.test(v)) {
+              let c = fs.readFileSync('src-tauri/Cargo.toml', 'utf8').replace(/^version = \".*?\"/m, 'version = \"' + v + '\"');
+              fs.writeFileSync('src-tauri/Cargo.toml', c);
+              let t = fs.readFileSync('src-tauri/tauri.conf.json', 'utf8').replace(/\"version\": \".*?\"/, '\"version\": \"' + v + '\"');
+              fs.writeFileSync('src-tauri/tauri.conf.json', t);
+              console.log('✓ Synced version to ' + v);
+            }
+          " "${{ github.event.inputs.tag || github.ref_name }}"
 
       # ── Build ───────────────────────────────────────────────────
       - name: Build Tauri bundles
@@ -161,12 +166,22 @@ jobs:
             export LIBCLANG_PATH=$(llvm-config --libdir)
             echo "LIBCLANG_PATH: $LIBCLANG_PATH"
           fi
+          IS_VALID_KEY=true
           if [ -n "$SIGNING_KEY" ]; then
+            if echo "$SIGNING_KEY" | base64 -d 2>/dev/null | grep -qi "public key"; then
+              echo "::warning::TAURI_SIGNING_PRIVATE_KEY appears to be a PUBLIC key (*.key.pub), not a PRIVATE key (*.key)! Please update the secret in GitHub repository settings."
+              IS_VALID_KEY=false
+            fi
+          else
+            IS_VALID_KEY=false
+          fi
+
+          if [ "$IS_VALID_KEY" = "true" ]; then
             export TAURI_SIGNING_PRIVATE_KEY="$SIGNING_KEY"
             export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$SIGNING_KEY_PWD"
             cargo tauri build --target ${{ matrix.target }}
           else
-            echo "Building unsigned bundles (SIGNING_KEY not set in secrets)..."
+            echo "Building unsigned bundles (valid SIGNING_KEY not configured)..."
             cargo tauri build --target ${{ matrix.target }} --config '{"bundle":{"createUpdaterArtifacts":false},"plugins":{"updater":{"pubkey":""}}}'
           fi
         env:

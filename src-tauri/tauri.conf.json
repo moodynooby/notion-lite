@@ -11,7 +11,7 @@
                 "https://github.com/moodynooby/Notion/releases/latest/download/latest.json"
             ],
             "dialog": true,
-            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY0M0IwQkQxMDlFNjc1REMKUldUY2RlWUowUXM3WkhtYmdWZVF1WGpFSzdWNGkxc3hzRzZYclM3V3lzb3d0ZW1pdlhEQjNJWXkK"
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDUzNDRENEVFRDhFNDYzOUUKUldTZVkrVFk3dFJFVTNkYlYwNUp6UFZDRjM3TWdVOThaeGtOVmZUVXQxUmZCTlROMm9acTFoRE0K"
         }
     },
     "app": {
@@ -26,6 +26,7 @@
             "deb",
             "rpm",
             "appimage",
+            "app",
             "dmg",
             "nsis"
         ],

@@ -60,21 +60,27 @@ jobs:
         with:
           targets: x86_64-unknown-linux-gnu
 
-      - uses: actions/cache@v4
+      - name: Setup Rust cache
+        uses: swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            src-tauri/target
-          key: rel-linux-x86_64-${{ hashFiles('src-tauri/Cargo.lock') }}
-          restore-keys: rel-linux-x86_64-
+          workspaces: src-tauri
 
       - uses: cargo-bins/cargo-binstall@main
       - run: cargo binstall --no-confirm tauri-cli@^2
 
       - name: Sync version from tag
-        shell: bash
-        run: ./scripts/sync-version.sh "${{ github.event.inputs.tag || github.ref_name }}"
+        run: |
+          node -e "
+            const fs = require('fs');
+            const v = process.argv[1].replace(/^v/, '');
+            if (/^\d+\.\d+\.\d+/.test(v)) {
+              let c = fs.readFileSync('src-tauri/Cargo.toml', 'utf8').replace(/^version = \".*?\"/m, 'version = \"' + v + '\"');
+              fs.writeFileSync('src-tauri/Cargo.toml', c);
+              let t = fs.readFileSync('src-tauri/tauri.conf.json', 'utf8').replace(/\"version\": \".*?\"/, '\"version\": \"' + v + '\"');
+              fs.writeFileSync('src-tauri/tauri.conf.json', t);
+              console.log('✓ Synced version to ' + v);
+            }
+          " "${{ github.event.inputs.tag || github.ref_name }}"
 
       - name: Build bundles
         working-directory: src-tauri
@@ -82,12 +88,22 @@ jobs:
           export LIBCLANG_PATH=$(llvm-config --libdir)
           export LD_LIBRARY_PATH=$(llvm-config --libdir):$LD_LIBRARY_PATH
           echo "LIBCLANG_PATH: $LIBCLANG_PATH"
+          IS_VALID_KEY=true
           if [ -n "$SIGNING_KEY" ]; then
+            if echo "$SIGNING_KEY" | base64 -d 2>/dev/null | grep -qi "public key"; then
+              echo "::warning::TAURI_SIGNING_PRIVATE_KEY appears to be a PUBLIC key (*.key.pub), not a PRIVATE key (*.key)! Please update the secret in GitHub repository settings."
+              IS_VALID_KEY=false
+            fi
+          else
+            IS_VALID_KEY=false
+          fi
+
+          if [ "$IS_VALID_KEY" = "true" ]; then
             export TAURI_SIGNING_PRIVATE_KEY="$SIGNING_KEY"
             export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$SIGNING_KEY_PWD"
             cargo tauri build --target x86_64-unknown-linux-gnu
           else
-            echo "Building unsigned bundles (SIGNING_KEY not set in secrets)..."
+            echo "Building unsigned bundles (valid SIGNING_KEY not configured)..."
             cargo tauri build --target x86_64-unknown-linux-gnu --config '{"bundle":{"createUpdaterArtifacts":false},"plugins":{"updater":{"pubkey":""}}}'
           fi
         env:
@@ -134,21 +150,27 @@ jobs:
         with:
           targets: x86_64-apple-darwin
 
-      - uses: actions/cache@v4
+      - name: Setup Rust cache
+        uses: swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            src-tauri/target
-          key: rel-macos-x86_64-${{ hashFiles('src-tauri/Cargo.lock') }}
-          restore-keys: rel-macos-x86_64-
+          workspaces: src-tauri
 
       - uses: cargo-bins/cargo-binstall@main
       - run: cargo binstall --no-confirm tauri-cli@^2
 
       - name: Sync version from tag
-        shell: bash
-        run: ./scripts/sync-version.sh "${{ github.event.inputs.tag || github.ref_name }}"
+        run: |
+          node -e "
+            const fs = require('fs');
+            const v = process.argv[1].replace(/^v/, '');
+            if (/^\d+\.\d+\.\d+/.test(v)) {
+              let c = fs.readFileSync('src-tauri/Cargo.toml', 'utf8').replace(/^version = \".*?\"/m, 'version = \"' + v + '\"');
+              fs.writeFileSync('src-tauri/Cargo.toml', c);
+              let t = fs.readFileSync('src-tauri/tauri.conf.json', 'utf8').replace(/\"version\": \".*?\"/, '\"version\": \"' + v + '\"');
+              fs.writeFileSync('src-tauri/tauri.conf.json', t);
+              console.log('✓ Synced version to ' + v);
+            }
+          " "${{ github.event.inputs.tag || github.ref_name }}"
 
       - name: Build bundles
         working-directory: src-tauri
@@ -157,12 +179,22 @@ jobs:
           export LIBCLANG_PATH="$(brew --prefix llvm)/lib"
           echo "LIBCLANG_PATH: $LIBCLANG_PATH"
           ls -la "$LIBCLANG_PATH" | head -20
+          IS_VALID_KEY=true
           if [ -n "$SIGNING_KEY" ]; then
+            if echo "$SIGNING_KEY" | base64 -d 2>/dev/null | grep -qi "public key"; then
+              echo "::warning::TAURI_SIGNING_PRIVATE_KEY appears to be a PUBLIC key (*.key.pub), not a PRIVATE key (*.key)! Please update the secret in GitHub repository settings."
+              IS_VALID_KEY=false
+            fi
+          else
+            IS_VALID_KEY=false
+          fi
+
+          if [ "$IS_VALID_KEY" = "true" ]; then
             export TAURI_SIGNING_PRIVATE_KEY="$SIGNING_KEY"
             export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$SIGNING_KEY_PWD"
             cargo tauri build --target x86_64-apple-darwin
           else
-            echo "Building unsigned bundles (SIGNING_KEY not set in secrets)..."
+            echo "Building unsigned bundles (valid SIGNING_KEY not configured)..."
             cargo tauri build --target x86_64-apple-darwin --config '{"bundle":{"createUpdaterArtifacts":false},"plugins":{"updater":{"pubkey":""}}}'
           fi
         env:
@@ -206,21 +238,27 @@ jobs:
         with:
           targets: aarch64-apple-darwin
 
-      - uses: actions/cache@v4
+      - name: Setup Rust cache
+        uses: swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            src-tauri/target
-          key: rel-macos-aarch64-${{ hashFiles('src-tauri/Cargo.lock') }}
-          restore-keys: rel-macos-aarch64-
+          workspaces: src-tauri
 
       - uses: cargo-bins/cargo-binstall@main
       - run: cargo binstall --no-confirm tauri-cli@^2
 
       - name: Sync version from tag
-        shell: bash
-        run: ./scripts/sync-version.sh "${{ github.event.inputs.tag || github.ref_name }}"
+        run: |
+          node -e "
+            const fs = require('fs');
+            const v = process.argv[1].replace(/^v/, '');
+            if (/^\d+\.\d+\.\d+/.test(v)) {
+              let c = fs.readFileSync('src-tauri/Cargo.toml', 'utf8').replace(/^version = \".*?\"/m, 'version = \"' + v + '\"');
+              fs.writeFileSync('src-tauri/Cargo.toml', c);
+              let t = fs.readFileSync('src-tauri/tauri.conf.json', 'utf8').replace(/\"version\": \".*?\"/, '\"version\": \"' + v + '\"');
+              fs.writeFileSync('src-tauri/tauri.conf.json', t);
+              console.log('✓ Synced version to ' + v);
+            }
+          " "${{ github.event.inputs.tag || github.ref_name }}"
 
       - name: Build bundles
         working-directory: src-tauri
@@ -229,12 +267,22 @@ jobs:
           export LIBCLANG_PATH="$(brew --prefix llvm)/lib"
           echo "LIBCLANG_PATH: $LIBCLANG_PATH"
           ls -la "$LIBCLANG_PATH" | head -20
+          IS_VALID_KEY=true
           if [ -n "$SIGNING_KEY" ]; then
+            if echo "$SIGNING_KEY" | base64 -d 2>/dev/null | grep -qi "public key"; then
+              echo "::warning::TAURI_SIGNING_PRIVATE_KEY appears to be a PUBLIC key (*.key.pub), not a PRIVATE key (*.key)! Please update the secret in GitHub repository settings."
+              IS_VALID_KEY=false
+            fi
+          else
+            IS_VALID_KEY=false
+          fi
+
+          if [ "$IS_VALID_KEY" = "true" ]; then
             export TAURI_SIGNING_PRIVATE_KEY="$SIGNING_KEY"
             export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$SIGNING_KEY_PWD"
             cargo tauri build --target aarch64-apple-darwin
           else
-            echo "Building unsigned bundles (SIGNING_KEY not set in secrets)..."
+            echo "Building unsigned bundles (valid SIGNING_KEY not configured)..."
             cargo tauri build --target aarch64-apple-darwin --config '{"bundle":{"createUpdaterArtifacts":false},"plugins":{"updater":{"pubkey":""}}}'
           fi
         env:
@@ -278,21 +326,27 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
 
-      - uses: actions/cache@v4
+      - name: Setup Rust cache
+        uses: swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            src-tauri/target
-          key: rel-windows-x86_64-${{ hashFiles('src-tauri/Cargo.lock') }}
-          restore-keys: rel-windows-x86_64-
+          workspaces: src-tauri
 
       - uses: cargo-bins/cargo-binstall@main
       - run: cargo binstall --no-confirm tauri-cli@^2
 
       - name: Sync version from tag
-        shell: bash
-        run: ./scripts/sync-version.sh "${{ github.event.inputs.tag || github.ref_name }}"
+        run: |
+          node -e "
+            const fs = require('fs');
+            const v = process.argv[1].replace(/^v/, '');
+            if (/^\d+\.\d+\.\d+/.test(v)) {
+              let c = fs.readFileSync('src-tauri/Cargo.toml', 'utf8').replace(/^version = \".*?\"/m, 'version = \"' + v + '\"');
+              fs.writeFileSync('src-tauri/Cargo.toml', c);
+              let t = fs.readFileSync('src-tauri/tauri.conf.json', 'utf8').replace(/\"version\": \".*?\"/, '\"version\": \"' + v + '\"');
+              fs.writeFileSync('src-tauri/tauri.conf.json', t);
+              console.log('✓ Synced version to ' + v);
+            }
+          " "${{ github.event.inputs.tag || github.ref_name }}"
 
       - name: Build bundles
         working-directory: src-tauri
@@ -306,12 +360,22 @@ jobs:
             fi
           fi
           echo "LIBCLANG_PATH: $LIBCLANG_PATH"
+          IS_VALID_KEY=true
           if [ -n "$SIGNING_KEY" ]; then
+            if echo "$SIGNING_KEY" | base64 -d 2>/dev/null | grep -qi "public key"; then
+              echo "::warning::TAURI_SIGNING_PRIVATE_KEY appears to be a PUBLIC key (*.key.pub), not a PRIVATE key (*.key)! Please update the secret in GitHub repository settings."
+              IS_VALID_KEY=false
+            fi
+          else
+            IS_VALID_KEY=false
+          fi
+
+          if [ "$IS_VALID_KEY" = "true" ]; then
             export TAURI_SIGNING_PRIVATE_KEY="$SIGNING_KEY"
             export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$SIGNING_KEY_PWD"
             cargo tauri build --target x86_64-pc-windows-msvc
           else
-            echo "Building unsigned bundles (SIGNING_KEY not set in secrets)..."
+            echo "Building unsigned bundles (valid SIGNING_KEY not configured)..."
             cargo tauri build --target x86_64-pc-windows-msvc --config '{"bundle":{"createUpdaterArtifacts":false},"plugins":{"updater":{"pubkey":""}}}'
           fi
         env:
