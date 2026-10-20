@@ -206,6 +206,16 @@ jobs:
         shell: bash
         run: |
           mkdir -p staging
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            for deb in $(find src-tauri/target/${{ matrix.target }}/release/bundle -name "*.deb" 2>/dev/null); do
+              echo "Sanitizing Debian package $deb (removing duplicate desktop file)..."
+              tmp_extract=$(mktemp -d)
+              dpkg-deb -R "$deb" "$tmp_extract"
+              rm -f "$tmp_extract/usr/share/applications/Notion Lite.desktop"
+              dpkg-deb -b "$tmp_extract" "$deb"
+              rm -rf "$tmp_extract"
+            done
+          fi
           # Copy every bundle file (deb/rpm/AppImage/dmg/exe/msi) to staging/
           find src-tauri/target/${{ matrix.target }}/release/bundle \
             \( -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" -o -name "*.dmg" -o -name "*.exe" -o -name "*.msi" \) \

@@ -1,10 +1,12 @@
 [Desktop Entry]
 Name=Notion Lite
-Comment=Unofficial lightweight Notion.so Desktop app for Linux
+GenericName=Document Editor & Notes
+Comment=Native lightweight client for Notion.so
 Exec=notion-lite %U
 Icon=notion-lite
 Type=Application
 StartupNotify=true
-Categories=Office;TextEditor;
+Categories=Office;WordProcessor;
+Keywords=notion;notes;notebook;wiki;editor;productivity;office;
 MimeType=x-scheme-handler/notion;
 StartupWMClass=notion-lite

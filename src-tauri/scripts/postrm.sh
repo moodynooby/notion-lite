@@ -3,6 +3,7 @@ set -e
 
 case "$1" in
     remove|purge)
+        rm -f "/usr/share/applications/Notion Lite.desktop" "/usr/share/applications/notion-lite.desktop"
         if command -v gtk-update-icon-cache >/dev/null 2>&1; then
             gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
         fi

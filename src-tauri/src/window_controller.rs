@@ -59,11 +59,13 @@ impl<R: Runtime> WindowController<R> {
 
     pub fn setup_listeners(&self, app_handle: AppHandle<R>) {
         let window_label = self.window.label().to_string();
+        let window_clone = self.window.clone();
 
         self.window.on_window_event(move |event| match event {
-            tauri::WindowEvent::CloseRequested { .. } => {
-                log::info!("Window {} close requested", window_label);
-                app_handle.exit(0);
+            tauri::WindowEvent::CloseRequested { api, .. } => {
+                log::info!("Window {} close requested, hiding to system tray", window_label);
+                api.prevent_close();
+                let _ = window_clone.hide();
             }
             tauri::WindowEvent::Focused(focused) => {
                 log::debug!("Window {} focused: {}", window_label, focused);

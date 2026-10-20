@@ -4,6 +4,9 @@ set -e
 # Clean up legacy .list to prevent duplicate warnings (as per Section 1.2 & 5 of apt guide)
 rm -f /etc/apt/sources.list.d/notion-lite.list /etc/apt/sources.list.d/notion.list /etc/apt/sources.list.d/lotion-rs.list
 
+# Clean up auto-generated duplicate desktop entry with space in name
+rm -f "/usr/share/applications/Notion Lite.desktop"
+
 # Update system icon cache and desktop database so icons appear immediately
 if command -v gtk-update-icon-cache >/dev/null 2>&1; then
     gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true

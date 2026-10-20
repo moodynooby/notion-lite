@@ -410,6 +410,7 @@ fn main() {
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_window("main") {
                 let _ = window.show();
+                let _ = window.unminimize();
                 let _ = window.set_focus();
             }
         }))
@@ -467,26 +468,92 @@ fn main() {
                 }
             }
 
-            // Spawn tray icon if supported
+            // Spawn tray icon with menu (required by Linux StatusNotifierItem / AppIndicator)
             if let Some(icon) = app.default_window_icon() {
-                let _ = tauri::tray::TrayIconBuilder::new()
-                    .icon(icon.clone())
-                    .tooltip("Notion Lite")
-                    .on_tray_icon_event(|tray, event| {
-                        if let tauri::tray::TrayIconEvent::Click {
-                            button: tauri::tray::MouseButton::Left,
-                            button_state: tauri::tray::MouseButtonState::Up,
-                            ..
-                        } = event
-                        {
-                            let app = tray.app_handle();
-                            if let Some(window) = app.get_window("main") {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
+                let open_item = tauri::menu::MenuItem::with_id(
+                    app,
+                    "tray_open",
+                    "Open Notion Lite",
+                    true,
+                    None::<&str>,
+                );
+                let check_updates_item = tauri::menu::MenuItem::with_id(
+                    app,
+                    "tray_check_updates",
+                    "Check for Updates...",
+                    true,
+                    None::<&str>,
+                );
+                let quit_item = tauri::menu::MenuItem::with_id(
+                    app,
+                    "tray_quit",
+                    "Quit Notion Lite",
+                    true,
+                    None::<&str>,
+                );
+
+                if let (Ok(open_item), Ok(check_updates_item), Ok(quit_item)) =
+                    (open_item, check_updates_item, quit_item)
+                {
+                    if let Ok(tray_menu) = tauri::menu::MenuBuilder::new(app)
+                        .item(&open_item)
+                        .item(&check_updates_item)
+                        .separator()
+                        .item(&quit_item)
+                        .build()
+                    {
+                        let tray_builder = tauri::tray::TrayIconBuilder::with_id("main-tray")
+                            .icon(icon.clone())
+                            .tooltip("Notion Lite")
+                            .menu(&tray_menu)
+                            .show_menu_on_left_click(false)
+                            .on_menu_event(|app, event| match event.id.as_ref() {
+                                "tray_open" => {
+                                    if let Some(window) = app.get_window("main") {
+                                        let _ = window.show();
+                                        let _ = window.unminimize();
+                                        let _ = window.set_focus();
+                                    }
+                                }
+                                "tray_check_updates" => {
+                                    let handle = app.clone();
+                                    tauri::async_runtime::spawn(async move {
+                                        let _ = check_for_updates(handle).await;
+                                    });
+                                }
+                                "tray_quit" => {
+                                    app.exit(0);
+                                }
+                                _ => {}
+                            })
+                            .on_tray_icon_event(|tray, event| {
+                                if let tauri::tray::TrayIconEvent::Click {
+                                    button: tauri::tray::MouseButton::Left,
+                                    button_state: tauri::tray::MouseButtonState::Up,
+                                    ..
+                                } = event
+                                {
+                                    let app = tray.app_handle();
+                                    if let Some(window) = app.get_window("main") {
+                                        let _ = window.show();
+                                        let _ = window.unminimize();
+                                        let _ = window.set_focus();
+                                    }
+                                }
+                            });
+
+                        match tray_builder.build(app) {
+                            Ok(_) => log::info!("System tray icon initialized successfully."),
+                            Err(e) => log::warn!("Failed to initialize system tray icon: {}", e),
                         }
-                    })
-                    .build(app);
+                    } else {
+                        log::warn!("Failed to build system tray menu.");
+                    }
+                } else {
+                    log::warn!("Failed to create system tray menu items.");
+                }
+            } else {
+                log::warn!("Default window icon not found; system tray not spawned.");
             }
 
             // Background auto-updater task: checks for updates 5s after launch
