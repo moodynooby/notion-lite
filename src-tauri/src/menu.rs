@@ -4,7 +4,7 @@ use tauri::{
     AppHandle, Manager, Runtime,
 };
 
-pub fn create_main_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
+pub fn build_main_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<tauri::menu::Menu<R>> {
     let pkg_info = app.package_info();
 
     // Notion Lite Menu
@@ -132,14 +132,35 @@ pub fn create_main_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         )?)
         .build()?;
 
-    let menu = MenuBuilder::new(app)
+    MenuBuilder::new(app)
         .item(&notion_menu)
         .item(&nav_menu)
         .item(&edit_menu)
         .item(&view_menu)
-        .build()?;
+        .build()
+}
 
-    app.set_menu(menu)?;
+pub fn create_main_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
+    let menu = build_main_menu(app)?;
+
+    #[cfg(target_os = "macos")]
+    {
+        app.set_menu(menu)?;
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let show_menu = if let Some(config_lock) =
+            app.try_state::<Arc<std::sync::RwLock<crate::config::LotionConfig>>>()
+        {
+            config_lock.read().map(|c| c.show_menu_bar).unwrap_or(false)
+        } else {
+            false
+        };
+        if show_menu {
+            app.set_menu(menu)?;
+        }
+    }
 
     app.on_menu_event(move |app_handle, event| {
         match event.id().as_ref() {
@@ -169,12 +190,16 @@ pub fn create_main_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             }
             "nav_home" => {
                 log::info!("Menu: Home");
-                let home_url =
-                    if let Some(config) = app_handle.try_state::<crate::config::LotionConfig>() {
-                        config.get_start_url().to_string()
-                    } else {
-                        "https://app.notion.com".to_string()
-                    };
+                let home_url = if let Some(config_lock) =
+                    app_handle.try_state::<Arc<std::sync::RwLock<crate::config::LotionConfig>>>()
+                {
+                    config_lock
+                        .read()
+                        .map(|c| c.get_start_url().to_string())
+                        .unwrap_or_else(|_| "https://app.notion.com".to_string())
+                } else {
+                    "https://app.notion.com".to_string()
+                };
                 if let Some(tab_id) = get_active_tab_id(app_handle) {
                     if let Some(wv) = app_handle.get_webview(&tab_id) {
                         let _ = wv.eval(format!("window.location.href = '{}'", home_url));
@@ -183,80 +208,29 @@ pub fn create_main_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             }
             "preferences" => {
                 log::info!("Menu: Preferences");
-                use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
-                use tauri_plugin_shell::ShellExt;
-
-                let active_theme = if let Some(theming) =
-                    app_handle.try_state::<Arc<dyn crate::traits::ThemingEngine<R>>>()
-                {
-                    theming.get_active_theme()
-                } else {
-                    "default".to_string()
-                };
-
-                let config_dir = crate::config::NotionConfig::config_dir();
-                let config_path = crate::config::NotionConfig::config_path();
-                let menu_visible = if let Some(w) = app_handle.get_window("main") {
-                    w.is_menu_visible().unwrap_or(true)
-                } else {
-                    true
-                };
-
-                let message = format!(
-                    "Notion Lite Preferences\n\n\
-                    • Theme: {}\n\
-                    • Menu Bar Visible: {}\n\
-                    • Config Directory: {}\n\
-                    • Config File: {}\n\n\
-                    Keyboard Shortcuts:\n\
-                    • Ctrl+Shift+M: Toggle Menu Bar Visibility\n\
-                    • Ctrl+,: Open Preferences\n\
-                    • Alt+Left / Alt+Right: Back / Forward\n\
-                    • Ctrl+R / F5: Refresh\n\
-                    • Ctrl+H: Home (Notion.so)\n\
-                    • F12: Toggle Developer Tools\n\n\
-                    Click OK to open the configuration directory.",
-                    active_theme,
-                    if menu_visible { "Yes" } else { "No" },
-                    config_dir.display(),
-                    config_path.display()
-                );
-
-                let handle_clone = app_handle.clone();
-                let config_dir_str = config_dir.to_string_lossy().to_string();
-                let config_file_str = config_path.to_string_lossy().to_string();
-
-                let mut dialog_builder = app_handle
-                    .dialog()
-                    .message(message)
-                    .title("Preferences")
-                    .kind(MessageDialogKind::Info);
-
-                if let Some(w) = app_handle.get_window("main") {
-                    dialog_builder = dialog_builder.parent(&w);
-                }
-
-                dialog_builder.show(move |confirmed| {
-                    if confirmed {
-                        #[allow(deprecated)]
-                        if handle_clone.shell().open(&config_file_str, None).is_err() {
-                            let _ = handle_clone.shell().open(&config_dir_str, None);
-                        }
+                // Try opening the in-page preferences modal first
+                if let Some(tab_id) = get_active_tab_id(app_handle) {
+                    if let Some(wv) = app_handle.get_webview(&tab_id) {
+                        let _ = wv.eval("if (window.NotionLite && window.NotionLite.openPreferences) { window.NotionLite.openPreferences(); }");
                     }
-                });
+                }
             }
             "toggle_menu_bar" => {
                 log::info!("Menu: Toggle Menu Bar");
                 if let Some(w) = app_handle.get_window("main") {
-                    match w.is_menu_visible() {
-                        Ok(true) => {
-                            let _ = w.hide_menu();
-                        }
-                        Ok(false) => {
-                            let _ = w.show_menu();
-                        }
-                        Err(e) => {
-                            log::warn!("Failed to check menu visibility: {}", e);
+                    let is_visible = w.is_menu_visible().unwrap_or(true);
+                    let new_state = !is_visible;
+                    if new_state {
+                        let _ = w.show_menu();
+                    } else {
+                        let _ = w.hide_menu();
+                    }
+                    if let Some(config_lock) =
+                        app_handle.try_state::<Arc<std::sync::RwLock<crate::config::LotionConfig>>>()
+                    {
+                        if let Ok(mut config) = config_lock.write() {
+                            config.show_menu_bar = new_state;
+                            let _ = config.save();
                         }
                     }
                 }
@@ -345,12 +319,13 @@ pub fn create_main_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                     }
 
                     // Persist to config
-                    if let Some(config_state) =
-                        app_handle.try_state::<crate::config::LotionConfig>()
+                    if let Some(config_lock) =
+                        app_handle.try_state::<Arc<std::sync::RwLock<crate::config::LotionConfig>>>()
                     {
-                        let mut config = config_state.inner().clone();
-                        config.active_theme = theme_name;
-                        let _ = config.save();
+                        if let Ok(mut config) = config_lock.write() {
+                            config.active_theme = theme_name;
+                            let _ = config.save();
+                        }
                     }
                 }
             }

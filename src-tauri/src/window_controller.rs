@@ -12,7 +12,7 @@ impl<R: Runtime> WindowController<R> {
         let mut builder = WindowBuilder::new(app, "main")
             .title("Notion Lite")
             .inner_size(1200.0, 768.0)
-            .decorations(true)
+            .decorations(false)
             .resizable(true);
 
         if let Some(icon) = app.default_window_icon() {
@@ -20,6 +20,21 @@ impl<R: Runtime> WindowController<R> {
         }
 
         let window = builder.build()?;
+        let _ = window.set_decorations(false);
+
+        let show_menu = if let Some(config_lock) =
+            app.try_state::<Arc<std::sync::RwLock<crate::config::LotionConfig>>>()
+        {
+            config_lock.read().map(|c| c.show_menu_bar).unwrap_or(false)
+        } else {
+            false
+        };
+
+        if !show_menu {
+            let _ = window.remove_menu();
+            let _ = window.hide_menu();
+        }
+
         let _ = window.show();
         let _ = window.set_focus();
 
@@ -86,15 +101,19 @@ impl<R: Runtime> WindowController<R> {
             }
             tauri::WindowEvent::Resized(size) => {
                 log::debug!("Window {} resized to {:?}", window_label, size);
-                if let Some(w) = app_handle.get_window(&window_label) {
-                    let webviews = w.webviews();
-                    for webview in webviews {
-                        let _ = webview.set_size(*size);
-                    }
-                }
                 let app_state_lock =
                     app_handle.state::<Arc<tokio::sync::Mutex<crate::state::AppState>>>();
                 let mut app_state = app_state_lock.blocking_lock();
+                if let Some(w_state) = app_state.windows.get_mut(&window_label) {
+                    if let Some(active_id) = &w_state.active_tab_id {
+                        if let Some(w) = app_handle.get_window(&window_label) {
+                            if let Some(active_wv) = w.get_webview(active_id) {
+                                let _ = active_wv.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(0.0, 0.0)));
+                                let _ = active_wv.set_size(*size);
+                            }
+                        }
+                    }
+                }
                 let mut changed = false;
                 if let Some(w_state) = app_state.windows.get_mut(&window_label) {
                     if (w_state.bounds.width - size.width as f64).abs() > 1.0 || (w_state.bounds.height - size.height as f64).abs() > 1.0 {
@@ -150,10 +169,16 @@ impl<R: Runtime> WindowController<R> {
             }
         };
 
-        let config = app.state::<crate::config::LotionConfig>();
+        let config_lock = app.state::<Arc<std::sync::RwLock<crate::config::LotionConfig>>>();
+        let (config_restore_tabs, config_start_url) = {
+            let guard = config_lock
+                .read()
+                .map_err(|e| tauri::Error::AssetNotFound(e.to_string()))?;
+            (guard.restore_tabs, guard.get_start_url().to_string())
+        };
         let mut tabs_restored = false;
 
-        if config.restore_tabs {
+        if config_restore_tabs {
             let app_state_lock = app.state::<Arc<tokio::sync::Mutex<crate::state::AppState>>>();
             let mut app_state = app_state_lock.blocking_lock();
 
@@ -169,14 +194,25 @@ impl<R: Runtime> WindowController<R> {
 
                 for old_id in &old_tab_ids {
                     if let Some(tab_state) = app_state.tabs.remove(old_id) {
-                        let url = tab_state.url.clone();
-                        let title = tab_state.title.clone();
+                        let url = if tab_state.url.contains("unsupported-browser.html")
+                            || tab_state.url.contains("notion.com/en-gb")
+                            || tab_state.url == "https://www.notion.com/"
+                            || tab_state.url == "https://notion.com/"
+                        {
+                            config_start_url.clone()
+                        } else {
+                            tab_state.url.clone()
+                        };
+                        let title = if tab_state.title.is_empty() || tab_state.title.contains("Your connected workspace") {
+                            "Notion".to_string()
+                        } else {
+                            tab_state.title.clone()
+                        };
                         let is_pinned = tab_state.is_pinned;
                         let new_tab_id = tab_manager.create_tab(app, window_label, &url)?;
 
                         if let Some(ws) = app_state.windows.get_mut(window_label) {
                             ws.tab_ids.push(new_tab_id.clone());
-                            ws.active_tab_id = Some(new_tab_id.clone());
                         }
                         app_state.tabs.insert(
                             new_tab_id.clone(),
@@ -184,12 +220,21 @@ impl<R: Runtime> WindowController<R> {
                                 id: new_tab_id.clone(),
                                 title,
                                 url,
-                                is_active: true,
+                                is_active: false,
                                 is_pinned,
                             },
                         );
-                        let _ = tab_manager.show_tab(&new_tab_id);
                         tabs_restored = true;
+                    }
+                }
+                if let Some(ws) = app_state.windows.get_mut(window_label) {
+                    let active_to_show = ws.active_tab_id.clone().or_else(|| ws.tab_ids.last().cloned());
+                    if let Some(active_id) = active_to_show {
+                        ws.active_tab_id = Some(active_id.clone());
+                        if let Some(t) = app_state.tabs.get_mut(&active_id) {
+                            t.is_active = true;
+                        }
+                        let _ = tab_manager.show_tab(&active_id);
                     }
                 }
                 if tabs_restored {
@@ -201,7 +246,7 @@ impl<R: Runtime> WindowController<R> {
         }
 
         if !tabs_restored {
-            let notion_url = config.get_start_url();
+            let notion_url = &config_start_url;
             log::info!(
                 "WindowController: Creating initial tab for Notion: {}",
                 notion_url

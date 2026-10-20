@@ -1,6 +1,6 @@
 {
     "productName": "Notion Lite",
-    "version": "0.3.25",
+    "version": "0.3.27",
     "identifier": "io.notion-lite.desktop",
     "build": {
         "frontendDist": "assets"
@@ -15,6 +15,7 @@
         }
     },
     "app": {
+        "withGlobalTauri": true,
         "security": {
             "csp": "default-src 'self' notion.so *.notion.so notion.com *.notion.com notion-static.com tauri://localhost wry://localhost; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: notion.so *.notion.so notion.com *.notion.com notion-static.com https://js.stripe.com tauri://localhost wry://localhost; connect-src 'self' https: wss: notion.so *.notion.so notion.com *.notion.com notion-static.com tauri://localhost wry://localhost; img-src 'self' data: blob: https: notion.so *.notion.so notion.com *.notion.com notion-static.com; style-src 'self' 'unsafe-inline' https: notion.so *.notion.so notion.com *.notion.com; font-src 'self' data: https: notion.so *.notion.so notion.com *.notion.com; worker-src 'self' blob:; child-src 'self' blob:; frame-src 'self' https:;"
         }

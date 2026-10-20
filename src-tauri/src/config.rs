@@ -2,12 +2,25 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
+fn default_show_menu_bar() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        true
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        false
+    }
+}
+
 /// User-facing configuration persisted to disk as TOML.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotionConfig {
     pub active_theme: String,
     pub custom_css_path: Option<PathBuf>,
     pub restore_tabs: bool,
+    #[serde(default = "default_show_menu_bar")]
+    pub show_menu_bar: bool,
     #[serde(default)]
     pub start_url: Option<String>,
     pub window: WindowConfig,
@@ -31,6 +44,7 @@ impl Default for NotionConfig {
             active_theme: "dracula".to_string(),
             custom_css_path: None,
             restore_tabs: true,
+            show_menu_bar: default_show_menu_bar(),
             start_url: Some("https://app.notion.com".to_string()),
             window: WindowConfig {
                 width: 1200.0,

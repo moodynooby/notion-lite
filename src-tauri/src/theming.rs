@@ -41,8 +41,12 @@ impl ThemeManager {
                     --theme--interactive: #bd93f9;
                     --theme--interactive_hover: #ff79c6;
                     --theme--divider: #6272a4;
+                    color: #f8f8f2 !important;
                 }
-                .notion-sidebar, .notion-topbar { background: #21222c !important; }
+                :root.dark .notion-sidebar, :root.dark .notion-topbar {
+                    background: #21222c !important;
+                    color: #f8f8f2 !important;
+                }
             "#
             .to_string(),
             "nord" => r#"
@@ -55,6 +59,11 @@ impl ThemeManager {
                     --theme--interactive: #81a1c1;
                     --theme--interactive_hover: #88c0d0;
                     --theme--divider: #4c566a;
+                    color: #eceff4 !important;
+                }
+                :root.dark .notion-sidebar, :root.dark .notion-topbar {
+                    background: #2e3440 !important;
+                    color: #eceff4 !important;
                 }
             "#
             .to_string(),
@@ -67,15 +76,16 @@ impl ThemeManager {
 impl<R: Runtime> ThemingEngine<R> for ThemeManager {
     fn get_theme_css(&self, theme_name: &str) -> String {
         let vars = self.generate_notion_variables(theme_name);
-        if vars.is_empty() {
-            return "".to_string();
-        }
-        format!("(function() {{
+        format!(
+            "(function() {{
+            document.documentElement.setAttribute('data-nl-theme', '{}');
             const style = document.getElementById('notion-theme-style') || document.createElement('style');
             style.id = 'notion-theme-style';
             style.textContent = `{}`;
             if (!style.parentElement) document.head.appendChild(style);
-        }})();", vars)
+        }})();",
+            theme_name, vars
+        )
     }
 
     fn get_custom_css(&self) -> String {
