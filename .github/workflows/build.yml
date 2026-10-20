@@ -131,18 +131,19 @@ jobs:
 
       # ── Sync version if building a tag ──────────────────────────
       - name: Sync version from tag
+        shell: bash
         run: |
-          node -e "
-            const fs = require('fs');
-            const v = process.argv[1].replace(/^v/, '');
+          node -e '
+            const fs = require("fs");
+            const v = process.argv[1].replace(/^v/, "");
             if (/^\d+\.\d+\.\d+/.test(v)) {
-              let c = fs.readFileSync('src-tauri/Cargo.toml', 'utf8').replace(/^version = \".*?\"/m, 'version = \"' + v + '\"');
-              fs.writeFileSync('src-tauri/Cargo.toml', c);
-              let t = fs.readFileSync('src-tauri/tauri.conf.json', 'utf8').replace(/\"version\": \".*?\"/, '\"version\": \"' + v + '\"');
-              fs.writeFileSync('src-tauri/tauri.conf.json', t);
-              console.log('✓ Synced version to ' + v);
+              let c = fs.readFileSync("src-tauri/Cargo.toml", "utf8").replace(/^version = ".*?"/m, `version = "${v}"`);
+              fs.writeFileSync("src-tauri/Cargo.toml", c);
+              let t = fs.readFileSync("src-tauri/tauri.conf.json", "utf8").replace(/"version": ".*?"/, `"version": "${v}"`);
+              fs.writeFileSync("src-tauri/tauri.conf.json", t);
+              console.log("✓ Synced version to " + v);
             }
-          " "${{ github.event.inputs.tag || github.ref_name }}"
+          ' "${{ github.event.inputs.tag || github.ref_name }}"
 
       # ── Build ───────────────────────────────────────────────────
       - name: Build Tauri bundles
@@ -171,6 +172,13 @@ jobs:
             if echo "$SIGNING_KEY" | base64 -d 2>/dev/null | grep -qi "public key"; then
               echo "::warning::TAURI_SIGNING_PRIVATE_KEY appears to be a PUBLIC key (*.key.pub), not a PRIVATE key (*.key)! Please update the secret in GitHub repository settings."
               IS_VALID_KEY=false
+            else
+              echo "test" > __test_key.txt
+              if ! cargo tauri signer sign --private-key "$SIGNING_KEY" --password "${SIGNING_KEY_PWD:-}" __test_key.txt >/dev/null 2>&1; then
+                echo "::warning::TAURI_SIGNING_PRIVATE_KEY could not be decrypted with TAURI_SIGNING_PRIVATE_KEY_PASSWORD (wrong key or password). Please update your GitHub repository secrets! Building unsigned bundles..."
+                IS_VALID_KEY=false
+              fi
+              rm -f __test_key.txt __test_key.txt.sig
             fi
           else
             IS_VALID_KEY=false
@@ -179,7 +187,12 @@ jobs:
           if [ "$IS_VALID_KEY" = "true" ]; then
             export TAURI_SIGNING_PRIVATE_KEY="$SIGNING_KEY"
             export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$SIGNING_KEY_PWD"
-            cargo tauri build --target ${{ matrix.target }}
+            if ! cargo tauri build --target ${{ matrix.target }}; then
+              echo "::warning::Tauri signed build failed. Falling back to unsigned build..."
+              unset TAURI_SIGNING_PRIVATE_KEY
+              unset TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+              cargo tauri build --target ${{ matrix.target }} --config '{"bundle":{"createUpdaterArtifacts":false},"plugins":{"updater":{"pubkey":""}}}'
+            fi
           else
             echo "Building unsigned bundles (valid SIGNING_KEY not configured)..."
             cargo tauri build --target ${{ matrix.target }} --config '{"bundle":{"createUpdaterArtifacts":false},"plugins":{"updater":{"pubkey":""}}}'
