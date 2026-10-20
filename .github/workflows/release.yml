@@ -194,7 +194,6 @@ jobs:
           export SDKROOT=$(xcrun --show-sdk-path)
           export LIBCLANG_PATH="$(brew --prefix llvm)/lib"
           echo "LIBCLANG_PATH: $LIBCLANG_PATH"
-          ls -la "$LIBCLANG_PATH" | head -20
           IS_VALID_KEY=true
           if [ -n "$SIGNING_KEY" ]; then
             if echo "$SIGNING_KEY" | base64 -d 2>/dev/null | grep -qi "public key"; then
@@ -296,7 +295,6 @@ jobs:
           export SDKROOT=$(xcrun --show-sdk-path)
           export LIBCLANG_PATH="$(brew --prefix llvm)/lib"
           echo "LIBCLANG_PATH: $LIBCLANG_PATH"
-          ls -la "$LIBCLANG_PATH" | head -20
           IS_VALID_KEY=true
           if [ -n "$SIGNING_KEY" ]; then
             if echo "$SIGNING_KEY" | base64 -d 2>/dev/null | grep -qi "public key"; then
