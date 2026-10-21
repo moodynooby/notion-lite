@@ -127,20 +127,20 @@ jobs:
       - name: Stage bundles
         run: |
           mkdir -p staging
-          for deb in $(find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.deb" 2>/dev/null); do
+          while IFS= read -r -d '' deb; do
             echo "Sanitizing Debian package $deb (removing duplicate desktop file)..."
             tmp_extract=$(mktemp -d)
             dpkg-deb -R "$deb" "$tmp_extract"
             rm -f "$tmp_extract/usr/share/applications/Notion Lite.desktop"
             dpkg-deb -b "$tmp_extract" "$deb"
             rm -rf "$tmp_extract"
-          done
+          done < <(find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.deb" -print0 2>/dev/null)
           # Rename to static names for permanent README links
-          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.deb" -exec cp {} staging/notion-lite_amd64.deb \;
-          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.rpm" -exec cp {} staging/notion-lite.rpm \;
-          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.AppImage" -exec cp {} staging/notion-lite.AppImage \;
-          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.sig" -exec cp {} staging/ \; || true
-          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.tar.gz*" -exec cp {} staging/ \; || true
+          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.deb" -exec cp "{}" staging/notion-lite_amd64.deb \;
+          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.rpm" -exec cp "{}" staging/notion-lite.rpm \;
+          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.AppImage" -exec cp "{}" staging/notion-lite.AppImage \;
+          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.sig" -exec cp "{}" staging/ \; || true
+          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.tar.gz*" -exec cp "{}" staging/ \; || true
           ls -lh staging/
 
       - uses: actions/upload-artifact@v4
@@ -607,19 +607,19 @@ jobs:
             "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "platforms": {
               "linux-x86_64": {
-                "signature": "$(get_sig $LINUX_ASSET)",
+                "signature": "$(get_sig "$LINUX_ASSET")",
                 "url": "$REPO_URL/$LINUX_ASSET"
               },
               "darwin-x86_64": {
-                "signature": "$(get_sig $MACOS_X64_ASSET)",
+                "signature": "$(get_sig "$MACOS_X64_ASSET")",
                 "url": "$REPO_URL/$MACOS_X64_ASSET"
               },
               "darwin-aarch64": {
-                "signature": "$(get_sig $MACOS_ARM_ASSET)",
+                "signature": "$(get_sig "$MACOS_ARM_ASSET")",
                 "url": "$REPO_URL/$MACOS_ARM_ASSET"
               },
               "windows-x86_64": {
-                "signature": "$(get_sig $WINDOWS_ASSET)",
+                "signature": "$(get_sig "$WINDOWS_ASSET")",
                 "url": "$REPO_URL/$WINDOWS_ASSET"
               }
             }

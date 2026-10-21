@@ -503,7 +503,9 @@ fn open_config_directory(
     use tauri_plugin_shell::ShellExt;
     let config_dir = NotionConfig::config_dir().to_string_lossy().to_string();
     #[allow(deprecated)]
-    app.shell().open(config_dir, None).map_err(|e| e.to_string())?;
+    app.shell()
+        .open(config_dir, None)
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -605,10 +607,7 @@ fn main() {
             .map(|c| c.custom_css_path.clone())
             .unwrap_or(None)
     };
-    let theming = Arc::new(ThemeManager::with_config(
-        &active_theme,
-        custom_css,
-    ));
+    let theming = Arc::new(ThemeManager::with_config(&active_theme, custom_css));
     let tab_manager = Arc::new(notion::tab_manager::TabManager::<tauri::Wry>::new(
         security.litebox.clone(),
     ));

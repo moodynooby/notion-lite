@@ -203,7 +203,9 @@ impl<R: Runtime> WindowController<R> {
                         } else {
                             tab_state.url.clone()
                         };
-                        let title = if tab_state.title.is_empty() || tab_state.title.contains("Your connected workspace") {
+                        let title = if tab_state.title.is_empty()
+                            || tab_state.title.contains("Your connected workspace")
+                        {
                             "Notion".to_string()
                         } else {
                             tab_state.title.clone()
@@ -228,7 +230,10 @@ impl<R: Runtime> WindowController<R> {
                     }
                 }
                 if let Some(ws) = app_state.windows.get_mut(window_label) {
-                    let active_to_show = ws.active_tab_id.clone().or_else(|| ws.tab_ids.last().cloned());
+                    let active_to_show = ws
+                        .active_tab_id
+                        .clone()
+                        .or_else(|| ws.tab_ids.last().cloned());
                     if let Some(active_id) = active_to_show {
                         ws.active_tab_id = Some(active_id.clone());
                         if let Some(t) = app_state.tabs.get_mut(&active_id) {

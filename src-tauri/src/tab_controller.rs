@@ -53,7 +53,9 @@ impl<R: Runtime> TabController<R> {
             window.add_child(webview_builder, tauri::LogicalPosition::new(0.0, 0.0), size)?;
         let _ = webview.set_auto_resize(true);
         // Start hidden by default; TabOrchestrator manages visibility
-        let _ = webview.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(-10000.0, -10000.0)));
+        let _ = webview.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(
+            -10000.0, -10000.0,
+        )));
         let _ = webview.set_size(tauri::Size::Logical(tauri::LogicalSize::new(0.0, 0.0)));
         let _ = webview.hide();
 
@@ -93,7 +95,11 @@ impl<R: Runtime> TabController<R> {
     }
 
     pub fn show(&self) -> tauri::Result<()> {
-        let _ = self.webview.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(0.0, 0.0)));
+        let _ = self
+            .webview
+            .set_position(tauri::Position::Logical(tauri::LogicalPosition::new(
+                0.0, 0.0,
+            )));
         let w = self.webview.window();
         if let Ok(size) = w.inner_size() {
             let _ = self.webview.set_size(tauri::Size::Physical(size));
@@ -105,8 +111,14 @@ impl<R: Runtime> TabController<R> {
     }
 
     pub fn hide(&self) -> tauri::Result<()> {
-        let _ = self.webview.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(-10000.0, -10000.0)));
-        let _ = self.webview.set_size(tauri::Size::Logical(tauri::LogicalSize::new(0.0, 0.0)));
+        let _ = self
+            .webview
+            .set_position(tauri::Position::Logical(tauri::LogicalPosition::new(
+                -10000.0, -10000.0,
+            )));
+        let _ = self
+            .webview
+            .set_size(tauri::Size::Logical(tauri::LogicalSize::new(0.0, 0.0)));
         self.webview.hide()?;
         Ok(())
     }
@@ -1348,4 +1360,3 @@ mod tests {
         assert!(js.contains("notion-lite-prefs-modal"));
     }
 }
-
