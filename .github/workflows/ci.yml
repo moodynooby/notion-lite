@@ -5,6 +5,7 @@ on:
     branches: [main, master, develop, rust-version]
   pull_request:
     branches: [main, master, develop, rust-version]
+  workflow_dispatch:
 
 # Cancel any in-progress run for the same branch/PR so we never waste minutes.
 concurrency:
@@ -47,15 +48,10 @@ jobs:
         with:
           components: clippy, rustfmt
 
-      - name: Restore Cargo cache
-        uses: actions/cache@v4
+      - name: Setup Rust cache
+        uses: swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            src-tauri/target
-          key: lint-${{ hashFiles('src-tauri/Cargo.lock') }}
-          restore-keys: lint-
+          workspaces: src-tauri
 
       - name: cargo check
         working-directory: src-tauri
@@ -100,15 +96,10 @@ jobs:
       - name: Setup Rust (stable)
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Restore Cargo cache
-        uses: actions/cache@v4
+      - name: Setup Rust cache
+        uses: swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            src-tauri/target
-          key: test-${{ hashFiles('src-tauri/Cargo.lock') }}
-          restore-keys: test-
+          workspaces: src-tauri
 
       - name: cargo test
         working-directory: src-tauri
@@ -131,8 +122,11 @@ jobs:
       - name: Setup Rust (stable)
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@main
+
       - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
+        run: cargo binstall --no-confirm cargo-audit
 
       - name: cargo audit
         working-directory: src-tauri

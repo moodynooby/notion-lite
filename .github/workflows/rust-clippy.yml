@@ -17,6 +17,11 @@ on:
     branches: [ "master" ]
   schedule:
     - cron: '43 21 * * 0'
+  workflow_dispatch:
+
+concurrency:
+  group: clippy-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   rust-clippy-analyze:
@@ -47,8 +52,16 @@ jobs:
         with:
           components: clippy
 
+      - name: Setup Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@main
+
       - name: Install required cargo tools
-        run: cargo install clippy-sarif sarif-fmt
+        run: cargo binstall --no-confirm clippy-sarif sarif-fmt
 
       - name: Run rust-clippy
         working-directory: src-tauri

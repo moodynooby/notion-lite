@@ -16,6 +16,11 @@ on:
       - ".github/workflows/integrity.yml"
   pull_request:
     branches: [main, master, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: integrity-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

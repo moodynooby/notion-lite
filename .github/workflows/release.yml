@@ -28,6 +28,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
@@ -151,7 +155,7 @@ jobs:
           copy_artifact "*.deb" "notion-lite_amd64.deb"
           copy_artifact "*.rpm" "notion-lite.rpm"
           copy_artifact "*.AppImage" "notion-lite.AppImage"
-          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.tar.gz" -exec cp "{}" staging/ \; || true
+          copy_artifact "*.AppImage.tar.gz" "notion-lite.AppImage.tar.gz"
           ls -lh staging/
 
       - uses: actions/upload-artifact@v4
@@ -636,7 +640,7 @@ jobs:
       - name: Generate SHA-256 checksums
         run: |
           cd release-assets
-          find . -maxdepth 1 -type f ! -name "SHA256SUMS.txt" -exec sha256sum {} + | sed 's|^\./||' > SHA256SUMS.txt
+          find . -maxdepth 1 -type f ! -name "SHA256SUMS.txt" -exec sha256sum {} + | sed 's|  \./|  |' | sort -k 2 > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       # Generate latest.json for Tauri Updater
@@ -731,4 +735,5 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
+        continue-on-error: true
         uses: actions/deploy-pages@v4
