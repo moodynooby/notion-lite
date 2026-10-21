@@ -36,12 +36,12 @@ The original Lotion solved this brilliantly using Electron. But Electron carries
 
 You can download the latest version for your platform here:
 
-- [🐧 Linux (.deb)](https://github.com/moodynooby/Notion/releases/latest/download/notion-lite_amd64.deb)
-- [🐧 Linux (.AppImage)](https://github.com/moodynooby/Notion/releases/latest/download/notion-lite.AppImage)
-- [🐧 Linux (.rpm)](https://github.com/moodynooby/Notion/releases/latest/download/notion-lite.rpm)
-- [🍎 macOS Intel (x64 .dmg)](https://github.com/moodynooby/Notion/releases/latest/download/notion-lite-x64.dmg)
-- [🍎 macOS Silicon (arm64 .dmg)](https://github.com/moodynooby/Notion/releases/latest/download/notion-lite-arm64.dmg)
-- [🪟 Windows (x64 .exe)](https://github.com/moodynooby/Notion/releases/latest/download/notion-lite-setup.exe)
+- [🐧 Linux (.deb)](https://github.com/moodynooby/notion-lite/releases/latest/download/notion-lite_amd64.deb)
+- [🐧 Linux (.AppImage)](https://github.com/moodynooby/notion-lite/releases/latest/download/notion-lite.AppImage)
+- [🐧 Linux (.rpm)](https://github.com/moodynooby/notion-lite/releases/latest/download/notion-lite.rpm)
+- [🍎 macOS Intel (x64 .dmg)](https://github.com/moodynooby/notion-lite/releases/latest/download/notion-lite-x64.dmg)
+- [🍎 macOS Silicon (arm64 .dmg)](https://github.com/moodynooby/notion-lite/releases/latest/download/notion-lite-arm64.dmg)
+- [🪟 Windows (x64 .exe)](https://github.com/moodynooby/notion-lite/releases/latest/download/notion-lite-setup.exe)
 
 ### Debian / Ubuntu (APT Repository - Recommended)
 
@@ -49,13 +49,13 @@ Configure the official APT repository using the modern **deb822 standard** (`.so
 
 ```bash
 # Automated setup (installs keyring to /etc/apt/keyrings and configures deb822 source):
-curl -fsSL https://raw.githubusercontent.com/moodynooby/Notion/main/scripts/setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/moodynooby/notion-lite/HEAD/scripts/setup.sh | bash
 ```
 
 Or configure manually in `/etc/apt/sources.list.d/notion-lite.sources`:
 ```deb822
 Types: deb
-URIs: https://moodynooby.github.io/Notion/apt-repo/
+URIs: https://moodynooby.github.io/notion-lite/apt-repo/
 Suites: stable
 Components: main
 Architectures: amd64 arm64
@@ -85,8 +85,8 @@ sudo rpm -i notion-lite-*.rpm
 ### AppImage (any Linux)
 
 ```bash
-chmod +x Notion-Lite_*.AppImage
-./Notion-Lite_*.AppImage
+chmod +x notion-lite.AppImage
+./notion-lite.AppImage
 ```
 
 ### Windows
@@ -117,7 +117,7 @@ This project is developed in the spirit of the [Zero-Trust Engineering Manifesto
 
 What that means in practice for Notion Lite:
 
-- **Zero-Trust by Default** — No network segment is trusted. Enforces strict HTTPS schemes and exact subdomain matching for Notion and OAuth providers.
+- **Zero-Trust by Default** — No network segment is trusted. Enforces strict HTTPS schemes and explicit allowlists for Notion and OAuth domains.
 - **LiteBox Sandboxing** — [EXPERIMENTAL] The Notion WebView runs with OS-level process isolation (Job Objects on Windows, `NO_NEW_PRIVS` on Linux). Navigation to non-allowlisted domains is intercepted and either blocked or routed to the system browser.
 - **Least Privilege** — The application requests only the OS permissions it requires. No access to your filesystem beyond `~/.config/notion-lite/`.
 - **Anti-Telemetry** — No usage data, analytics, or crash reports are sent anywhere. What happens on your machine stays on your machine.
@@ -135,7 +135,7 @@ What that means in practice for Notion Lite:
 - **System Tray Integration** — Minimise to tray and restore from tray without losing your session.
 
 ### Security
-- **LiteBox WebView Sandbox** — The Notion WebView is isolated; only `notion.so` and its authorised subdomains may load content. (Requires WebKitGTK sandboxing support on Linux).
+- **LiteBox WebView Sandbox** — The Notion WebView is isolated; only `notion.so`/`notion.com` and their subdomains may load content. (Requires WebKitGTK sandboxing support on Linux).
 - **Strict Navigation Policy** — Requests to external domains or non-HTTPS schemes are intercepted and either blocked or delegated to the system browser via a secure protocol validation layer.
 - **No Remote Telemetry** — Zero data exfiltration. No analytics, no crash reporting pipeline, no "phone home".
 
@@ -186,8 +186,8 @@ cargo install tauri-cli --version "^2.0"
 ### Build
 
 ```bash
-git clone https://github.com/moodynooby/Notion.git
-cd Notion/src-tauri
+git clone https://github.com/moodynooby/notion-lite.git
+cd notion-lite/src-tauri
 cargo tauri build
 ```
 
@@ -244,10 +244,15 @@ notion-lite/
 ├── src-tauri/           # Rust / Tauri backend
 │   ├── src/
 │   │   ├── main.rs           # Entry point, Tauri app bootstrap
+│   │   ├── commands.rs       # Tauri IPC commands
 │   │   ├── config.rs         # TOML config load/save
 │   │   ├── window_controller.rs  # Window state management
 │   │   ├── tab_controller.rs     # Multi-tab logic
 │   │   ├── tab_manager.rs    # Tab orchestration
+│   │   ├── tray.rs           # System tray integration
+│   │   ├── updater.rs        # Update checks and installation
+│   │   ├── secret.rs         # State-encryption secret lifecycle
+│   │   ├── crypto.rs         # State encryption primitives
 │   │   ├── policy.rs         # Zero-Trust policy enforcement
 │   │   └── theming.rs        # Native CSS/JS theming engine
 │   ├── assets/          # Icons, banner, CSS themes

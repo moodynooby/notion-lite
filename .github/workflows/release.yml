@@ -26,7 +26,7 @@ on:
         required: true
 
 permissions:
-  contents: write   # needed to create the GitHub Release
+  contents: read
 
 env:
   CARGO_TERM_COLOR: always
@@ -135,12 +135,23 @@ jobs:
             dpkg-deb -b "$tmp_extract" "$deb"
             rm -rf "$tmp_extract"
           done < <(find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.deb" -print0 2>/dev/null)
-          # Rename to static names for permanent README links
-          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.deb" -exec cp "{}" staging/notion-lite_amd64.deb \;
-          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.rpm" -exec cp "{}" staging/notion-lite.rpm \;
-          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.AppImage" -exec cp "{}" staging/notion-lite.AppImage \;
-          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.sig" -exec cp "{}" staging/ \; || true
-          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.tar.gz*" -exec cp "{}" staging/ \; || true
+          # Rename to static names for permanent README links.
+          # Updater signatures must be renamed alongside their artifacts.
+          copy_artifact() {
+            pattern="$1"
+            dest="$2"
+            src=$(find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "$pattern" -print | head -n 1)
+            if [ -n "$src" ]; then
+              cp "$src" "staging/$dest"
+              if [ -f "${src}.sig" ]; then
+                cp "${src}.sig" "staging/$dest.sig"
+              fi
+            fi
+          }
+          copy_artifact "*.deb" "notion-lite_amd64.deb"
+          copy_artifact "*.rpm" "notion-lite.rpm"
+          copy_artifact "*.AppImage" "notion-lite.AppImage"
+          find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -name "*.tar.gz" -exec cp "{}" staging/ \; || true
           ls -lh staging/
 
       - uses: actions/upload-artifact@v4
@@ -239,9 +250,19 @@ jobs:
       - name: Stage bundles
         run: |
           mkdir -p staging
-          find src-tauri/target/x86_64-apple-darwin/release/bundle -name "*.dmg" -exec cp {} staging/notion-lite-x64.dmg \;
-          find src-tauri/target/x86_64-apple-darwin/release/bundle -name "*.app.tar.gz" -exec cp {} staging/notion-lite-macos-x64.app.tar.gz \;
-          find src-tauri/target/x86_64-apple-darwin/release/bundle -name "*.sig" -exec cp {} staging/ \; || true
+          copy_artifact() {
+            pattern="$1"
+            dest="$2"
+            src=$(find src-tauri/target/x86_64-apple-darwin/release/bundle -name "$pattern" -print | head -n 1)
+            if [ -n "$src" ]; then
+              cp "$src" "staging/$dest"
+              if [ -f "${src}.sig" ]; then
+                cp "${src}.sig" "staging/$dest.sig"
+              fi
+            fi
+          }
+          copy_artifact "*.dmg" "notion-lite-x64.dmg"
+          copy_artifact "*.app.tar.gz" "notion-lite-macos-x64.app.tar.gz"
           ls -lh staging/
 
       - uses: actions/upload-artifact@v4
@@ -340,9 +361,19 @@ jobs:
       - name: Stage bundles
         run: |
           mkdir -p staging
-          find src-tauri/target/aarch64-apple-darwin/release/bundle -name "*.dmg" -exec cp {} staging/notion-lite-arm64.dmg \;
-          find src-tauri/target/aarch64-apple-darwin/release/bundle -name "*.app.tar.gz" -exec cp {} staging/notion-lite-macos-arm64.app.tar.gz \;
-          find src-tauri/target/aarch64-apple-darwin/release/bundle -name "*.sig" -exec cp {} staging/ \; || true
+          copy_artifact() {
+            pattern="$1"
+            dest="$2"
+            src=$(find src-tauri/target/aarch64-apple-darwin/release/bundle -name "$pattern" -print | head -n 1)
+            if [ -n "$src" ]; then
+              cp "$src" "staging/$dest"
+              if [ -f "${src}.sig" ]; then
+                cp "${src}.sig" "staging/$dest.sig"
+              fi
+            fi
+          }
+          copy_artifact "*.dmg" "notion-lite-arm64.dmg"
+          copy_artifact "*.app.tar.gz" "notion-lite-macos-arm64.app.tar.gz"
           ls -lh staging/
 
       - uses: actions/upload-artifact@v4
@@ -447,9 +478,19 @@ jobs:
         shell: bash
         run: |
           mkdir -p staging
-          find src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis -name "*.exe" -exec cp {} staging/notion-lite-setup.exe \;
-          find src-tauri/target/x86_64-pc-windows-msvc/release/bundle -name "*.sig" -exec cp {} staging/ \; || true
-          find src-tauri/target/x86_64-pc-windows-msvc/release/bundle -name "*.zip*" -exec cp {} staging/ \; || true
+          copy_artifact() {
+            pattern="$1"
+            dest="$2"
+            src=$(find src-tauri/target/x86_64-pc-windows-msvc/release/bundle -name "$pattern" -print | head -n 1)
+            if [ -n "$src" ]; then
+              cp "$src" "staging/$dest"
+              if [ -f "${src}.sig" ]; then
+                cp "${src}.sig" "staging/$dest.sig"
+              fi
+            fi
+          }
+          copy_artifact "*.exe" "notion-lite-setup.exe"
+          copy_artifact "*.zip" "notion-lite-setup.zip"
           ls -lh staging/
 
       - uses: actions/upload-artifact@v4
@@ -465,6 +506,10 @@ jobs:
     name: Publish GitHub Release
     needs: [build-linux, build-macos-x64, build-macos-arm64, build-windows]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
 
     steps:
       - name: Checkout (full history for changelog)
@@ -555,8 +600,20 @@ jobs:
       - name: List release assets
         run: find release-assets/ -type f | sort
 
+      - name: Import APT signing key
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+        run: |
+          if [ -n "$APT_GPG_PRIVATE_KEY" ]; then
+            printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
+          else
+            echo "::warning::APT_GPG_PRIVATE_KEY is not configured; the APT repository will be unsigned."
+          fi
+
       # Build compliant Debian/Ubuntu APT repository according to apt-packaging-guide.md
       - name: Build APT Repository
+        env:
+          GPG_KEY_ID: ${{ secrets.APT_GPG_KEY_ID }}
         run: |
           sudo apt-get update && sudo apt-get install -y dpkg-dev
           mkdir -p dist
@@ -564,6 +621,16 @@ jobs:
           ./scripts/update-repo.sh apt-repo
           tar -czf release-assets/apt-repo.tar.gz -C apt-repo .
           cp scripts/setup.sh release-assets/
+
+      - name: Prepare GitHub Pages artifact
+        run: |
+          mkdir -p pages-site
+          cp -a apt-repo pages-site/apt-repo
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pages-site
 
       # Generate SHA-256 checksums for all assets
       - name: Generate SHA-256 checksums
@@ -583,22 +650,30 @@ jobs:
           LINUX_ASSET=$(find release-assets -name "*.AppImage" -printf "%f\n" | head -1)
           MACOS_X64_ASSET=$(find release-assets -name "*macos-x64.app.tar.gz" -printf "%f\n" | head -1)
           MACOS_ARM_ASSET=$(find release-assets -name "*macos-arm64.app.tar.gz" -printf "%f\n" | head -1)
+          WINDOWS_ASSET=$(find release-assets -name "*.exe" -printf "%f\n" | head -1)
           WINDOWS_ZIP=$(find release-assets -name "*.zip" -printf "%f\n" | head -1)
-          if [ -n "$WINDOWS_ZIP" ]; then
+          if [ -n "$WINDOWS_ZIP" ] && [ -f "release-assets/$WINDOWS_ZIP.sig" ]; then
             WINDOWS_ASSET="$WINDOWS_ZIP"
-          else
-            WINDOWS_ASSET=$(find release-assets -name "*.exe" -printf "%f\n" | head -1)
           fi
 
-          # Get signatures (assuming .sig files are generated or using manual sha256 as fallback)
-          # Note: Real production should use .sig files generated by tauri build
           get_sig() {
-            if [ -f "release-assets/$1.sig" ]; then
-              cat "release-assets/$1.sig"
-            else
-              echo "MISSING_SIGNATURE"
-            fi
+            cat "release-assets/$1.sig"
           }
+
+          # Never publish updater metadata for unsigned artifacts: Tauri will
+          # reject the update and leave users stuck on an older version.
+          MISSING_SIGNATURES=0
+          for asset in "$LINUX_ASSET" "$MACOS_X64_ASSET" "$MACOS_ARM_ASSET" "$WINDOWS_ASSET"; do
+            if [ -z "$asset" ] || [ ! -f "release-assets/$asset.sig" ]; then
+              echo "::warning::Missing updater signature for '${asset:-unknown asset}'"
+              MISSING_SIGNATURES=1
+            fi
+          done
+          if [ "$MISSING_SIGNATURES" -ne 0 ]; then
+            echo "::warning::Skipping latest.json because the updater artifacts are not fully signed."
+            rm -f release-assets/latest.json
+            exit 0
+          fi
 
           cat <<EOF > release-assets/latest.json
           {
@@ -639,3 +714,21 @@ jobs:
             release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ────────────────────────────────────────────────────────────────
+  # 3. Deploy the APT repository to GitHub Pages
+  # ────────────────────────────────────────────────────────────────
+  deploy-pages:
+    name: Deploy APT repository to GitHub Pages
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

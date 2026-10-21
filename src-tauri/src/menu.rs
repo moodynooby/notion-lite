@@ -1,3 +1,4 @@
+use crate::traits::{TabOrchestrator, ThemingEngine};
 use std::sync::Arc;
 use tauri::{
     menu::{AboutMetadata, MenuBuilder, MenuItem, SubmenuBuilder},
@@ -216,24 +217,8 @@ pub fn create_main_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                 }
             }
             "toggle_menu_bar" => {
-                log::info!("Menu: Toggle Menu Bar");
-                if let Some(w) = app_handle.get_window("main") {
-                    let is_visible = w.is_menu_visible().unwrap_or(true);
-                    let new_state = !is_visible;
-                    if new_state {
-                        let _ = w.show_menu();
-                    } else {
-                        let _ = w.hide_menu();
-                    }
-                    if let Some(config_lock) =
-                        app_handle.try_state::<Arc<std::sync::RwLock<crate::config::LotionConfig>>>()
-                    {
-                        if let Ok(mut config) = config_lock.write() {
-                            config.show_menu_bar = new_state;
-                            let _ = config.save();
-                        }
-                    }
-                }
+                let new_state = toggle_menu_bar(app_handle);
+                log::info!("Menu: Toggle Menu Bar -> {}", new_state);
             }
             "toggle_dev_tools" => {
                 log::info!("Menu: Toggle Developer Tools");
@@ -258,82 +243,91 @@ pub fn create_main_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                 log::info!("Menu: Check for Updates requested");
                 let handle = app_handle.clone();
                 tauri::async_runtime::spawn(async move {
-                    use tauri_plugin_updater::UpdaterExt;
-                    match handle.updater() {
-                        Ok(updater) => match updater.check().await {
-                            Ok(Some(update)) => {
-                                log::info!("Update available: v{}", update.version);
-                                let mut downloaded: usize = 0;
-                                let _ = update
-                                    .download_and_install(
-                                        |chunk_length, content_length| {
-                                            downloaded += chunk_length;
-                                            log::info!(
-                                                "Downloaded {} of {:?}",
-                                                downloaded,
-                                                content_length
-                                            );
-                                        },
-                                        || {
-                                            log::info!("Update download complete, installing...");
-                                        },
-                                    )
-                                    .await;
-                                log::info!("Update installed. Restarting...");
-                                handle.restart();
-                            }
-                            Ok(None) => {
-                                log::info!("App is up to date.");
-                            }
-                            Err(e) => {
-                                log::warn!("Update check failed: {}", e);
-                            }
-                        },
-                        Err(e) => {
-                            log::warn!("Failed to get updater: {}", e);
-                        }
+                    if let Err(e) = crate::updater::check_for_updates(handle).await {
+                        log::warn!("Menu: Update check failed: {}", e);
                     }
                 });
             }
             theme_id if theme_id.starts_with("theme_") => {
                 let theme_name = theme_id.replace("theme_", "");
                 log::info!("Menu: Switch theme to {}", theme_name);
-
-                // Retrieve state manually to avoid borrowing issues
-                if let Some(theming) =
-                    app_handle.try_state::<Arc<dyn crate::traits::ThemingEngine<R>>>()
-                {
-                    theming.set_active_theme(&theme_name);
-
-                    if let Some(orchestrator) =
-                        app_handle.try_state::<Arc<dyn crate::traits::TabOrchestrator<R>>>()
-                    {
-                        let tab_ids = orchestrator.get_tab_ids();
-                        for tab_id in tab_ids {
-                            let _ = orchestrator.inject_theme_into_tab(
-                                app_handle,
-                                &tab_id,
-                                &theme_name,
-                            );
-                        }
-                    }
-
-                    // Persist to config
-                    if let Some(config_lock) =
-                        app_handle.try_state::<Arc<std::sync::RwLock<crate::config::LotionConfig>>>()
-                    {
-                        if let Ok(mut config) = config_lock.write() {
-                            config.active_theme = theme_name;
-                            let _ = config.save();
-                        }
-                    }
-                }
+                set_theme(app_handle, &theme_name);
             }
             _ => {}
         }
     });
 
     Ok(())
+}
+
+/// Shows or hides the native menu bar without touching persisted config.
+pub fn set_menu_bar_visible<R: Runtime>(app: &AppHandle<R>, visible: bool) -> tauri::Result<()> {
+    let Some(window) = app.get_window("main") else {
+        return Ok(());
+    };
+    if visible {
+        let menu = build_main_menu(app)?;
+        window.set_menu(menu)?;
+        window.show_menu()?;
+    } else {
+        window.remove_menu()?;
+        window.hide_menu()?;
+    }
+    Ok(())
+}
+
+/// Toggles the menu bar and persists the new visibility.
+pub fn toggle_menu_bar<R: Runtime>(app: &AppHandle<R>) -> bool {
+    let visible = app
+        .get_window("main")
+        .and_then(|window| window.is_menu_visible().ok())
+        .unwrap_or(false);
+    let new_state = !visible;
+    if let Err(e) = set_menu_bar_visible(app, new_state) {
+        log::warn!("Menu: Failed to set menu bar visibility: {}", e);
+    }
+    if let Some(config_lock) =
+        app.try_state::<Arc<std::sync::RwLock<crate::config::LotionConfig>>>()
+    {
+        if let Ok(mut config) = config_lock.write() {
+            config.show_menu_bar = new_state;
+            if let Err(e) = config.save() {
+                log::warn!("Menu: Failed to save menu bar setting: {}", e);
+            }
+        }
+    }
+    new_state
+}
+
+/// Applies a theme to the current session without writing config.
+///
+/// Callers that already hold the config lock must use this and save the theme
+/// themselves; [`set_theme`] is for callers that do not hold the lock.
+pub fn apply_theme<R: Runtime>(app: &AppHandle<R>, theme_name: &str) {
+    let Some(theming) = app.try_state::<Arc<dyn ThemingEngine<R>>>() else {
+        return;
+    };
+    theming.set_active_theme(theme_name);
+    if let Some(orchestrator) = app.try_state::<Arc<dyn TabOrchestrator<R>>>() {
+        for tab_id in orchestrator.get_tab_ids() {
+            let _ = orchestrator.inject_theme_into_tab(app, &tab_id, theme_name);
+        }
+    }
+}
+
+/// Applies a theme and persists it as the active theme.
+pub fn set_theme<R: Runtime>(app: &AppHandle<R>, theme_name: &str) {
+    apply_theme(app, theme_name);
+    if let Some(config_lock) =
+        app.try_state::<Arc<std::sync::RwLock<crate::config::LotionConfig>>>()
+    {
+        if let Ok(mut config) = config_lock.write() {
+            config.active_theme = theme_name.to_string();
+            if let Err(e) = config.save() {
+                log::warn!("Menu: Failed to save theme setting: {}", e);
+            }
+        }
+    }
 }
 
 fn get_active_tab_id<R: Runtime>(app: &AppHandle<R>) -> Option<String> {

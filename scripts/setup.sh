@@ -5,7 +5,7 @@ set -euo pipefail
 # Configures the modern deb822 source format (Debian 12+ / Ubuntu 24.04+ / Ubuntu 26.04+)
 # Compliant with apt-packaging-guide.md
 
-REPO_URL="${1:-https://moodynooby.github.io/Notion/apt-repo}"
+REPO_URL="${1:-https://moodynooby.github.io/notion-lite/apt-repo}"
 REPO_NAME="notion-lite"
 
 echo "Configuring ${REPO_NAME} APT repository..."

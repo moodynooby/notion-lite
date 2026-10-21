@@ -3,8 +3,6 @@
 //! Note: Tauri/WebKitGTK relies on bwrap internally when the sandbox is enabled,
 //! but this provides defense-in-depth resource dropping for the main process.
 
-use std::fs;
-
 pub fn apply_linux_sandbox() -> Result<(), String> {
     log::info!("Applying Linux filesystem/capability restrictions");
 
@@ -44,11 +42,4 @@ pub fn apply_linux_sandbox() -> Result<(), String> {
     }
 
     Ok(())
-}
-
-pub fn get_open_fd_count() -> usize {
-    match fs::read_dir("/proc/self/fd") {
-        Ok(entries) => entries.count(),
-        Err(_) => 0,
-    }
 }

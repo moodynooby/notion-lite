@@ -1,11 +1,5 @@
 use tauri::{AppHandle, Runtime};
 
-/// Interface for security sandboxing
-pub trait SecuritySandbox: Send + Sync {
-    fn initialize(&self);
-    fn get_fd_count(&self) -> usize;
-}
-
 /// Interface for tab navigation and orchestration
 pub trait TabOrchestrator<R: Runtime>: Send + Sync {
     fn create_tab(&self, app: &AppHandle<R>, window_id: &str, url: &str) -> tauri::Result<String>;
@@ -18,11 +12,6 @@ pub trait TabOrchestrator<R: Runtime>: Send + Sync {
         tab_id: &str,
         theme_name: &str,
     ) -> tauri::Result<()>;
-}
-
-/// Interface for window management
-pub trait WindowProvider<R: Runtime>: Send + Sync {
-    fn create_main_window(&self, app: &AppHandle<R>) -> tauri::Result<()>;
 }
 
 /// Interface for enforcing Zero-Trust Manifesto policies

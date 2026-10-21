@@ -1,36 +1,22 @@
 use crate::traits::PolicyEnforcer;
 
-pub struct PolicyManager {
-    allowed_domains: Vec<String>,
+/// True when `host` is Notion or a subdomain of Notion.
+///
+/// This is the single definition used by navigation policy, start-URL
+/// validation, and IPC origin checks so the three cannot drift apart.
+pub fn is_notion_host(host: &str) -> bool {
+    host == "notion.so"
+        || host.ends_with(".notion.so")
+        || host == "notion.com"
+        || host.ends_with(".notion.com")
 }
 
-impl Default for PolicyManager {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+#[derive(Default)]
+pub struct PolicyManager;
 
 impl PolicyManager {
     pub fn new() -> Self {
-        Self {
-            allowed_domains: vec![
-                "notion.so".to_string(),
-                "www.notion.so".to_string(),
-                "notion.com".to_string(),
-                "www.notion.com".to_string(),
-                "app.notion.com".to_string(),
-                "msgstore.www.notion.so".to_string(),
-                "file.notion.so".to_string(),
-                "msgstore.www.notion.com".to_string(),
-                "file.notion.com".to_string(),
-            ],
-        }
-    }
-
-    fn is_official_notion(&self, host: &str) -> bool {
-        self.allowed_domains
-            .iter()
-            .any(|domain| host == domain || host.ends_with(&format!(".{}", domain)))
+        Self
     }
 
     fn is_trusted_oauth(&self, host: &str) -> bool {
@@ -55,7 +41,7 @@ impl PolicyEnforcer for PolicyManager {
             }
 
             if let Some(host) = parsed_url.host_str() {
-                if self.is_official_notion(host) {
+                if is_notion_host(host) {
                     log::debug!("PolicyManager: ALLOWED official Notion domain: {}", host);
                     return true;
                 }
@@ -125,7 +111,7 @@ impl PolicyEnforcer for PolicyManager {
         if let Ok(parsed_url) = url::Url::parse(url) {
             if let Some(host) = parsed_url.host_str() {
                 // If it's an official Notion domain or OAuth provider, keep it in the app
-                if self.is_official_notion(host) || self.is_trusted_oauth(host) {
+                if is_notion_host(host) || self.is_trusted_oauth(host) {
                     return false;
                 }
             }
@@ -232,5 +218,19 @@ mod tests {
         assert!(!policy.validate_url("https://evilnotion.so"));
         assert!(!policy.validate_url("https://accounts.google.com.evil.com"));
         assert!(!policy.validate_url("https://appleid.apple.com.attacker.com"));
+    }
+
+    #[test]
+    fn test_is_notion_host_matches_only_notion_subdomains() {
+        assert!(is_notion_host("notion.so"));
+        assert!(is_notion_host("www.notion.so"));
+        assert!(is_notion_host("file.notion.so"));
+        assert!(is_notion_host("notion.com"));
+        assert!(is_notion_host("app.notion.com"));
+
+        assert!(!is_notion_host("evilnotion.com"));
+        assert!(!is_notion_host("notion.com.evil.com"));
+        assert!(!is_notion_host("notioncom"));
+        assert!(!is_notion_host(""));
     }
 }

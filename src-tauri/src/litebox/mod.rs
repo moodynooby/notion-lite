@@ -8,8 +8,6 @@
 //! and does not yet provide full filesystem/network jail isolation.
 //! Use with caution in high-risk environments.
 
-use crate::traits::SecuritySandbox;
-
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "windows")]
@@ -50,24 +48,6 @@ impl LiteBox {
 
         self.initialized = true;
         Ok(())
-    }
-}
-
-impl SecuritySandbox for LiteBox {
-    fn initialize(&self) {
-        log::info!("SecuritySandbox: LiteBox OS-Level Enforcement Online.");
-    }
-
-    fn get_fd_count(&self) -> usize {
-        // OS-level limits instead of manual tracking
-        #[cfg(target_os = "linux")]
-        {
-            linux::get_open_fd_count()
-        }
-        #[cfg(not(target_os = "linux"))]
-        {
-            0
-        }
     }
 }
 

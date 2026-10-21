@@ -1,4 +1,3 @@
-use crate::litebox::LiteBox;
 use crate::tab_controller::TabController;
 use crate::traits::TabOrchestrator;
 use std::collections::HashMap;
@@ -59,14 +58,18 @@ impl<R: Runtime> TabOrchestrator<R> for TabManager<R> {
 
 pub struct TabManager<R: Runtime> {
     pub tabs: RwLock<HashMap<String, Arc<TabController<R>>>>,
-    pub litebox: Arc<LiteBox>,
+}
+
+impl<R: Runtime> Default for TabManager<R> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<R: Runtime> TabManager<R> {
-    pub fn new(litebox: Arc<LiteBox>) -> Self {
+    pub fn new() -> Self {
         Self {
             tabs: RwLock::new(HashMap::new()),
-            litebox,
         }
     }
 
@@ -78,8 +81,7 @@ impl<R: Runtime> TabManager<R> {
     ) -> tauri::Result<String> {
         let tab_id = uuid::Uuid::new_v4().to_string();
 
-        let tab_controller =
-            TabController::new(app, window_id, tab_id.clone(), url, self.litebox.clone())?;
+        let tab_controller = TabController::new(app, window_id, tab_id.clone(), url)?;
 
         self.tabs
             .write()
@@ -88,14 +90,6 @@ impl<R: Runtime> TabManager<R> {
 
         log::info!("TabManager: Created tab {}", tab_id);
         Ok(tab_id)
-    }
-
-    pub fn get_tab(&self, tab_id: &str) -> Option<String> {
-        self.tabs
-            .read()
-            .expect("TabManager: tabs read lock poisoned")
-            .get(tab_id)
-            .map(|t| t.tab_id.clone())
     }
 
     pub fn destroy_tab(&self, tab_id: &str) -> tauri::Result<()> {

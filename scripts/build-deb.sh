@@ -92,7 +92,7 @@ Maintainer: Notion Lite Contributors <dev@notion-lite.local>
 Depends: libc6 (>= 2.34), libwebkit2gtk-4.1-0, libgtk-3-0, libayatana-appindicator3-1, librsvg2-common, ca-certificates
 Recommends: xdg-utils
 Installed-Size: ${INSTALLED_SIZE}
-Homepage: https://github.com/moodynooby/Notion
+Homepage: https://github.com/moodynooby/notion-lite
 Description: Native lightweight client for Notion.so
  Notion Lite is a fast, memory-efficient native Rust desktop client for
  Notion.so, built with Tauri v2. Features Zero-Trust security, LiteBox

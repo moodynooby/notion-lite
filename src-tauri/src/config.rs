@@ -2,34 +2,22 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-fn default_show_menu_bar() -> bool {
-    #[cfg(target_os = "macos")]
-    {
-        true
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        false
-    }
-}
-
 /// User-facing configuration persisted to disk as TOML.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct NotionConfig {
     pub active_theme: String,
     pub custom_css_path: Option<PathBuf>,
     pub restore_tabs: bool,
-    #[serde(default = "default_show_menu_bar")]
     pub show_menu_bar: bool,
-    #[serde(default)]
     pub start_url: Option<String>,
     pub window: WindowConfig,
 }
 
 pub type LotionConfig = NotionConfig;
-pub type NotionLiteConfig = NotionConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct WindowConfig {
     pub width: f64,
     pub height: f64,
@@ -38,21 +26,27 @@ pub struct WindowConfig {
     pub maximized: bool,
 }
 
+impl Default for WindowConfig {
+    fn default() -> Self {
+        Self {
+            width: 1200.0,
+            height: 800.0,
+            x: None,
+            y: None,
+            maximized: false,
+        }
+    }
+}
+
 impl Default for NotionConfig {
     fn default() -> Self {
         Self {
             active_theme: "dracula".to_string(),
             custom_css_path: None,
             restore_tabs: true,
-            show_menu_bar: default_show_menu_bar(),
+            show_menu_bar: cfg!(target_os = "macos"),
             start_url: Some("https://app.notion.com".to_string()),
-            window: WindowConfig {
-                width: 1200.0,
-                height: 800.0,
-                x: None,
-                y: None,
-                maximized: false,
-            },
+            window: WindowConfig::default(),
         }
     }
 }
@@ -64,11 +58,7 @@ impl NotionConfig {
             if let Ok(parsed) = url::Url::parse(url) {
                 if parsed.scheme() == "https" {
                     if let Some(host) = parsed.host_str() {
-                        if host == "notion.so"
-                            || host.ends_with(".notion.so")
-                            || host == "notion.com"
-                            || host.ends_with(".notion.com")
-                        {
+                        if crate::policy::is_notion_host(host) {
                             return url.as_str();
                         }
                     }
@@ -262,5 +252,22 @@ mod tests {
 
         custom_config.start_url = Some("http://app.notion.com".to_string()); // Insecure HTTP
         assert_eq!(custom_config.get_start_url(), "https://app.notion.com");
+    }
+
+    #[test]
+    fn test_partial_config_uses_defaults() {
+        let config: super::NotionConfig =
+            toml::from_str("active_theme = \"nord\"\n").expect("partial config should load");
+        assert_eq!(config.active_theme, "nord");
+        assert!(config.restore_tabs);
+        assert_eq!(config.window.width, 1200.0);
+        assert_eq!(config.window.height, 800.0);
+        assert_eq!(config.get_start_url(), "https://app.notion.com");
+
+        let window: super::WindowConfig =
+            toml::from_str("height = 600.0\n").expect("partial window config should load");
+        assert_eq!(window.width, 1200.0);
+        assert_eq!(window.height, 600.0);
+        assert!(!window.maximized);
     }
 }
