@@ -4,6 +4,17 @@ use crate::state::AppState;
 use std::sync::Arc;
 use tauri::Manager;
 
+// Helper function to refresh tab UI only on the active visible webview
+fn refresh_active_tab_ui(app: &tauri::AppHandle<tauri::Wry>, window_id: &str, active_tab_id: Option<&str>) {
+    if let Some(w) = app.get_window(window_id) {
+        if let Some(tab_id) = active_tab_id {
+            if let Some(wv) = w.get_webview(tab_id) {
+                let _ = wv.eval("if (window.NotionLite && window.NotionLite.refreshTabs) window.NotionLite.refreshTabs();");
+            }
+        }
+    }
+}
+
 // Helper function to check if the command invocation origin is trusted
 fn is_trusted_origin<R: tauri::Runtime>(webview: &tauri::Webview<R>) -> bool {
     if let Ok(url) = webview.url() {
@@ -31,13 +42,13 @@ fn is_trusted_origin<R: tauri::Runtime>(webview: &tauri::Webview<R>) -> bool {
 pub fn get_window_tabs(
     webview: tauri::Webview<tauri::Wry>,
     window_id: String,
-    state: tauri::State<'_, Arc<tokio::sync::Mutex<AppState>>>,
+    state: tauri::State<'_, Arc<std::sync::RwLock<AppState>>>,
 ) -> Vec<crate::state::TabState> {
     if !is_trusted_origin(&webview) {
         return Vec::new(); // Deny access for untrusted origins
     }
-    log::info!("get_window_tabs called from origin: {:?}", webview.url());
-    let app_state = state.blocking_lock();
+    log::debug!("get_window_tabs called from origin: {:?}", webview.url());
+    let app_state = state.read().expect("AppState read lock poisoned");
     if let Some(w_state) = app_state.windows.get(&window_id) {
         w_state
             .tab_ids
@@ -55,7 +66,7 @@ pub fn switch_tab(
     webview: tauri::Webview<tauri::Wry>,
     tab_id: String,
     orchestrator: tauri::State<'_, Arc<dyn crate::traits::TabOrchestrator<tauri::Wry>>>,
-    state: tauri::State<'_, Arc<tokio::sync::Mutex<AppState>>>,
+    state: tauri::State<'_, Arc<std::sync::RwLock<AppState>>>,
     app: tauri::AppHandle<tauri::Wry>,
 ) {
     if !is_trusted_origin(&webview) {
@@ -65,7 +76,7 @@ pub fn switch_tab(
     let _ = orchestrator.show_tab(&tab_id);
 
     {
-        let mut app_state = state.blocking_lock();
+        let mut app_state = state.write().expect("AppState write lock poisoned");
         for window_state in app_state.windows.values_mut() {
             if window_state.tab_ids.contains(&tab_id) {
                 window_state.active_tab_id = Some(tab_id.clone());
@@ -78,11 +89,7 @@ pub fn switch_tab(
         crate::state::persist_state(&app, &app_state);
     }
 
-    if let Some(w) = app.get_window("main") {
-        for wv in w.webviews() {
-            let _ = wv.eval("if (window.NotionLite && window.NotionLite.refreshTabs) window.NotionLite.refreshTabs();");
-        }
-    }
+    refresh_active_tab_ui(&app, "main", Some(&tab_id));
 }
 
 #[tauri::command]
@@ -90,7 +97,7 @@ pub fn close_tab(
     webview: tauri::Webview<tauri::Wry>,
     tab_id: String,
     orchestrator: tauri::State<'_, Arc<dyn crate::traits::TabOrchestrator<tauri::Wry>>>,
-    state: tauri::State<'_, Arc<tokio::sync::Mutex<AppState>>>,
+    state: tauri::State<'_, Arc<std::sync::RwLock<AppState>>>,
     app: tauri::AppHandle<tauri::Wry>,
 ) {
     if !is_trusted_origin(&webview) {
@@ -98,9 +105,10 @@ pub fn close_tab(
     }
     log::info!("close_tab called for tab: {}", tab_id);
     let _ = orchestrator.destroy_tab(&tab_id);
+    let mut new_active_id = None;
 
     {
-        let mut app_state = state.blocking_lock();
+        let mut app_state = state.write().expect("AppState write lock poisoned");
         app_state.tabs.remove(&tab_id);
 
         // Remove tab_id from its window
@@ -114,6 +122,7 @@ pub fn close_tab(
                         let _ = orchestrator.show_tab(new_active_tab_id);
                     }
                 }
+                new_active_id = window_state.active_tab_id.clone();
                 let active_id_opt = window_state.active_tab_id.clone();
                 for (id, t) in app_state.tabs.iter_mut() {
                     t.is_active = Some(id.as_str()) == active_id_opt.as_deref();
@@ -125,11 +134,7 @@ pub fn close_tab(
         crate::state::persist_state(&app, &app_state);
     }
 
-    if let Some(w) = app.get_window("main") {
-        for wv in w.webviews() {
-            let _ = wv.eval("if (window.NotionLite && window.NotionLite.refreshTabs) window.NotionLite.refreshTabs();");
-        }
-    }
+    refresh_active_tab_ui(&app, "main", new_active_id.as_deref());
 }
 
 #[tauri::command]
@@ -138,7 +143,7 @@ pub fn new_tab(
     window_id: String,
     orchestrator: tauri::State<'_, Arc<dyn crate::traits::TabOrchestrator<tauri::Wry>>>,
     config: tauri::State<'_, Arc<std::sync::RwLock<NotionConfig>>>,
-    state: tauri::State<'_, Arc<tokio::sync::Mutex<AppState>>>,
+    state: tauri::State<'_, Arc<std::sync::RwLock<AppState>>>,
     app: tauri::AppHandle<tauri::Wry>,
 ) {
     if !is_trusted_origin(&webview) {
@@ -151,7 +156,7 @@ pub fn new_tab(
         .unwrap_or_else(|_| "https://app.notion.com".to_string());
     if let Ok(new_id) = orchestrator.create_tab(&app, &window_id, &notion_url) {
         {
-            let mut app_state = state.blocking_lock();
+            let mut app_state = state.write().expect("AppState write lock poisoned");
             if let Some(w_state) = app_state.windows.get_mut(&window_id) {
                 w_state.tab_ids.push(new_id.clone());
                 w_state.active_tab_id = Some(new_id.clone());
@@ -173,12 +178,7 @@ pub fn new_tab(
         }
 
         let _ = orchestrator.show_tab(&new_id);
-
-        if let Some(w) = app.get_window(&window_id) {
-            for wv in w.webviews() {
-                let _ = wv.eval("if (window.NotionLite && window.NotionLite.refreshTabs) window.NotionLite.refreshTabs();");
-            }
-        }
+        refresh_active_tab_ui(&app, &window_id, Some(&new_id));
     }
 }
 
@@ -188,14 +188,14 @@ pub fn update_tab_state(
     tab_id: String,
     title: String,
     url: String,
-    state: tauri::State<'_, Arc<tokio::sync::Mutex<AppState>>>,
+    state: tauri::State<'_, Arc<std::sync::RwLock<AppState>>>,
     app: tauri::AppHandle<tauri::Wry>,
 ) {
     if !is_trusted_origin(&webview) {
         return; // Deny access for untrusted origins
     }
 
-    let mut app_state = state.blocking_lock();
+    let mut app_state = state.write().expect("AppState write lock poisoned");
 
     let safe_url = if url.contains("unsupported-browser.html") {
         "https://app.notion.com".to_string()

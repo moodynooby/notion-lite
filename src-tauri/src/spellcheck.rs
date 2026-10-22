@@ -7,7 +7,7 @@ unsafe impl Send for SafeHunspell {}
 unsafe impl Sync for SafeHunspell {}
 
 pub struct SpellcheckManager {
-    pub hunspell: Mutex<Option<SafeHunspell>>,
+    pub hunspell: std::sync::Arc<Mutex<Option<SafeHunspell>>>,
 }
 
 impl Default for SpellcheckManager {
@@ -18,9 +18,7 @@ impl Default for SpellcheckManager {
 
 impl SpellcheckManager {
     pub fn new() -> Self {
-        let manager = Self {
-            hunspell: Mutex::new(None),
-        };
+        let hunspell = std::sync::Arc::new(Mutex::new(None));
 
         // Cross-platform dictionary discovery
         let (aff, dic) = if cfg!(target_os = "windows") {
@@ -42,7 +40,14 @@ impl SpellcheckManager {
         };
 
         if std::path::Path::new(&aff).exists() && std::path::Path::new(&dic).exists() {
-            manager.load_dictionaries(&aff, &dic);
+            let hs_clone = hunspell.clone();
+            std::thread::spawn(move || {
+                let hs = Hunspell::new(&aff, &dic);
+                if let Ok(mut lock) = hs_clone.lock() {
+                    *lock = Some(SafeHunspell(hs));
+                    log::info!("Hunspell dictionaries loaded successfully in background.");
+                }
+            });
         } else {
             log::warn!(
                 "SpellcheckManager: Default en_US dictionaries not found at {}",
@@ -50,7 +55,7 @@ impl SpellcheckManager {
             );
         }
 
-        manager
+        Self { hunspell }
     }
 
     pub fn load_dictionaries(&self, aff_path: &str, dic_path: &str) {

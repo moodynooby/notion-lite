@@ -9,7 +9,7 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 PKG_NAME="notion-lite"
 if [ -z "${VERSION:-}" ]; then
-    VERSION=$(grep -m1 '^version = ' "${PROJECT_ROOT}/src-tauri/Cargo.toml" | cut -d '"' -f2 || echo "0.3.29")
+    VERSION=$(grep -m1 '^version = ' "${PROJECT_ROOT}/src-tauri/Cargo.toml" | cut -d '"' -f2 || echo "0.3.30")
 fi
 
 # Architecture detection

@@ -92,4 +92,52 @@ mod stress_tests {
             let _ = policy.validate_url(case);
         }
     }
+
+    #[test]
+    fn stress_test_concurrent_state_rwlock() {
+        use std::sync::{Arc, RwLock};
+        use std::thread;
+
+        let state = Arc::new(RwLock::new(AppState::new()));
+        let mut handles = Vec::new();
+
+        // 10 concurrent reader threads performing 100 reads each
+        for _ in 0..10 {
+            let state_clone = Arc::clone(&state);
+            handles.push(thread::spawn(move || {
+                for _ in 0..100 {
+                    let lock = state_clone.read().expect("Read lock poisoned");
+                    let _ = lock.tabs.len();
+                }
+            }));
+        }
+
+        // 4 concurrent writer threads modifying tabs
+        for w in 0..4 {
+            let state_clone = Arc::clone(&state);
+            handles.push(thread::spawn(move || {
+                for i in 0..25 {
+                    let mut lock = state_clone.write().expect("Write lock poisoned");
+                    let tab_id = format!("w{}-t{}", w, i);
+                    lock.tabs.insert(
+                        tab_id.clone(),
+                        crate::state::TabState {
+                            id: tab_id,
+                            title: "Title".to_string(),
+                            url: "https://app.notion.com".to_string(),
+                            is_active: false,
+                            is_pinned: false,
+                        },
+                    );
+                }
+            }));
+        }
+
+        for h in handles {
+            h.join().expect("Thread panicked");
+        }
+
+        let final_state = state.read().expect("Final read lock poisoned");
+        assert_eq!(final_state.tabs.len(), 100);
+    }
 }

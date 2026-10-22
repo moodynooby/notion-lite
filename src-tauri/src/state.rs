@@ -1,11 +1,14 @@
 use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tauri::{AppHandle, Manager, Runtime};
 
 use crate::crypto::{
     decrypt_data, encrypt_data, get_encryption_key, get_encryption_key_for_salt, EncryptedState,
 };
+
+static STATE_DIRTY_VERSION: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bounds {
@@ -82,7 +85,7 @@ impl AppState {
             data: general_purpose::STANDARD.encode(&ciphertext),
             nonce: general_purpose::STANDARD.encode(&nonce),
         };
-        let json = serde_json::to_string_pretty(&encrypted_state)?;
+        let json = serde_json::to_string(&encrypted_state)?;
 
         std::fs::write(&path, json)?;
         log::info!("Encrypted AppState saved to {}", path.display());
@@ -182,15 +185,44 @@ impl AppState {
     }
 }
 
-/// Persist the shared app state if the app secret is available.
+/// Persist the shared app state asynchronously with debouncing.
 ///
-/// All window/tab mutations flush through here so persistence has one
-/// implementation and one error path.
+/// Rapid window/tab mutations are coalesced so that state is not encrypted
+/// and written to disk continuously. The actual encryption and disk I/O run
+/// on a worker thread pool via `spawn_blocking`.
 pub fn persist_state<R: Runtime>(app: &AppHandle<R>, state: &AppState) {
+    let secret = match app.try_state::<std::sync::Arc<Vec<u8>>>() {
+        Some(s) => s.inner().clone(),
+        None => {
+            log::error!("Zero-Trust: application secret missing; state not saved");
+            return;
+        }
+    };
+    let state_clone = state.clone();
+    let current_ver = STATE_DIRTY_VERSION.fetch_add(1, Ordering::SeqCst) + 1;
+
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        // Only write if no newer update has superseded this one
+        if STATE_DIRTY_VERSION.load(Ordering::SeqCst) == current_ver {
+            tauri::async_runtime::spawn_blocking(move || {
+                if let Err(e) = state_clone.save_to_disk(&secret) {
+                    log::error!("Failed to save application state: {}", e);
+                }
+            });
+        }
+    });
+}
+
+/// Immediately and synchronously flushes the shared app state to disk.
+///
+/// Use this on shutdown or window close events where async tasks may not complete.
+pub fn persist_state_now<R: Runtime>(app: &AppHandle<R>, state: &AppState) {
     match app.try_state::<std::sync::Arc<Vec<u8>>>() {
         Some(secret) => {
+            STATE_DIRTY_VERSION.fetch_add(1, Ordering::SeqCst);
             if let Err(e) = state.save_to_disk(secret.inner().as_slice()) {
-                log::error!("Failed to save application state: {}", e);
+                log::error!("Failed to synchronously save application state: {}", e);
             }
         }
         None => log::error!("Zero-Trust: application secret missing; state not saved"),

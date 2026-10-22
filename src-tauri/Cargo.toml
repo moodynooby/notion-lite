@@ -1,10 +1,10 @@
 [package]
 name = "notion-lite"
-version = "0.3.29"
+version = "0.3.30"
 edition = "2021"
 
 [features]
-default = ["devtools"]
+default = []
 devtools = ["tauri/devtools"]
 
 [dependencies]
@@ -22,7 +22,6 @@ url = "2.5"
 toml = "0.8"
 dirs = "5.0"
 hunspell-rs = "0.4.0"
-fluent = "0.16"
 sha2 = "0.10"
 aes-gcm = "0.10"
 pbkdf2 = "0.12"
@@ -51,7 +50,7 @@ windows-sys = { version = "0.52", features = [
 
 [profile.release]
 opt-level = 3
-lto = "thin"
-codegen-units = 16
+lto = "fat"
+codegen-units = 1
 panic = "abort"
 strip = true

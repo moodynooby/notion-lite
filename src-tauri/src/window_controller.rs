@@ -9,8 +9,8 @@ pub struct WindowController<R: Runtime> {
 impl<R: Runtime> WindowController<R> {
     pub fn new(app: &AppHandle<R>) -> tauri::Result<Self> {
         let (initial_width, initial_height, initial_x, initial_y, initial_maximized) = {
-            let app_state_lock = app.state::<Arc<tokio::sync::Mutex<crate::state::AppState>>>();
-            let app_state = app_state_lock.blocking_lock();
+            let app_state_lock = app.state::<Arc<std::sync::RwLock<crate::state::AppState>>>();
+            let app_state = app_state_lock.read().expect("AppState read lock poisoned");
             if let Some(w) = app_state.windows.get("main") {
                 let w_val = if w.bounds.width >= 300.0 {
                     w.bounds.width
@@ -82,8 +82,8 @@ impl<R: Runtime> WindowController<R> {
         let _ = window.set_focus();
 
         // Ensure window state exists in AppState
-        let app_state_lock = app.state::<Arc<tokio::sync::Mutex<crate::state::AppState>>>();
-        let mut app_state = app_state_lock.blocking_lock();
+        let app_state_lock = app.state::<Arc<std::sync::RwLock<crate::state::AppState>>>();
+        let mut app_state = app_state_lock.write().expect("AppState write lock poisoned");
         if !app_state.windows.contains_key("main") {
             app_state.windows.insert(
                 "main".to_string(),
@@ -121,52 +121,47 @@ impl<R: Runtime> WindowController<R> {
                 );
                 api.prevent_close();
                 let app_state_lock =
-                    app_handle.state::<Arc<tokio::sync::Mutex<crate::state::AppState>>>();
-                let app_state = app_state_lock.blocking_lock();
-                crate::state::persist_state(&app_handle, &app_state);
+                    app_handle.state::<Arc<std::sync::RwLock<crate::state::AppState>>>();
+                let app_state = app_state_lock.read().expect("AppState read lock poisoned");
+                crate::state::persist_state_now(&app_handle, &app_state);
                 let _ = window_clone.hide();
             }
             tauri::WindowEvent::Focused(focused) => {
                 log::debug!("Window {} focused: {}", window_label, focused);
                 let app_state_lock =
-                    app_handle.state::<Arc<tokio::sync::Mutex<crate::state::AppState>>>();
-                let mut app_state = app_state_lock.blocking_lock();
+                    app_handle.state::<Arc<std::sync::RwLock<crate::state::AppState>>>();
+                let mut app_state = app_state_lock.write().expect("AppState write lock poisoned");
                 if *focused {
                     app_state.focused_window_id = Some(window_label.clone());
                 }
                 if let Some(w_state) = app_state.windows.get_mut(&window_label) {
                     w_state.is_focused = *focused;
                 }
-                crate::state::persist_state(&app_handle, &app_state);
             }
             tauri::WindowEvent::Resized(size) => {
                 log::debug!("Window {} resized to {:?}", window_label, size);
-                let app_state_lock =
-                    app_handle.state::<Arc<tokio::sync::Mutex<crate::state::AppState>>>();
-                let mut app_state = app_state_lock.blocking_lock();
-                if let Some(w_state) = app_state.windows.get_mut(&window_label) {
-                    if let Some(active_id) = &w_state.active_tab_id {
-                        if let Some(w) = app_handle.get_window(&window_label) {
-                            if let Some(active_wv) = w.get_webview(active_id) {
-                                let _ = active_wv.set_position(tauri::Position::Logical(
-                                    tauri::LogicalPosition::new(0.0, 0.0),
-                                ));
-                                let _ = active_wv.set_size(*size);
-                            }
+                if let Some(app_state_lock) =
+                    app_handle.try_state::<Arc<std::sync::RwLock<crate::state::AppState>>>()
+                {
+                    if let Ok(mut app_state) = app_state_lock.inner().write() {
+                        if let Some(w_state) = app_state.windows.get_mut(&window_label) {
+                            w_state.bounds.width = size.width as f64;
+                            w_state.bounds.height = size.height as f64;
                         }
                     }
-                    w_state.bounds.width = size.width as f64;
-                    w_state.bounds.height = size.height as f64;
                 }
             }
             tauri::WindowEvent::Moved(position) => {
                 log::debug!("Window {} moved to {:?}", window_label, position);
-                let app_state_lock =
-                    app_handle.state::<Arc<tokio::sync::Mutex<crate::state::AppState>>>();
-                let mut app_state = app_state_lock.blocking_lock();
-                if let Some(w_state) = app_state.windows.get_mut(&window_label) {
-                    w_state.bounds.x = Some(position.x as f64);
-                    w_state.bounds.y = Some(position.y as f64);
+                if let Some(app_state_lock) =
+                    app_handle.try_state::<Arc<std::sync::RwLock<crate::state::AppState>>>()
+                {
+                    if let Ok(mut app_state) = app_state_lock.inner().write() {
+                        if let Some(w_state) = app_state.windows.get_mut(&window_label) {
+                            w_state.bounds.x = Some(position.x as f64);
+                            w_state.bounds.y = Some(position.y as f64);
+                        }
+                    }
                 }
             }
             _ => {}
@@ -215,10 +210,10 @@ impl<R: Runtime> WindowController<R> {
         start_url: &str,
     ) -> tauri::Result<usize> {
         let window_label = self.window.label().to_string();
-        let state = app.state::<Arc<tokio::sync::Mutex<crate::state::AppState>>>();
+        let state = app.state::<Arc<std::sync::RwLock<crate::state::AppState>>>();
 
         let (old_active, old_ids) = {
-            let mut app_state = state.blocking_lock();
+            let mut app_state = state.write().expect("AppState write lock poisoned");
             let Some(window_state) = app_state.windows.get_mut(&window_label) else {
                 return Ok(0);
             };
@@ -228,7 +223,7 @@ impl<R: Runtime> WindowController<R> {
         };
 
         let old_tabs: Vec<(String, crate::state::TabState)> = {
-            let mut app_state = state.blocking_lock();
+            let mut app_state = state.write().expect("AppState write lock poisoned");
             old_ids
                 .into_iter()
                 .filter_map(|id| app_state.tabs.remove(&id).map(|tab| (id, tab)))
@@ -240,30 +235,46 @@ impl<R: Runtime> WindowController<R> {
         }
 
         log::info!(
-            "WindowController: Restoring {} tabs from saved state.",
+            "WindowController: Restoring {} tabs from saved state (lazy loading inactive tabs).",
             old_tabs.len()
         );
+
+        let target_active_old_id = old_active
+            .filter(|id| old_tabs.iter().any(|(old_id, _)| old_id == id))
+            .or_else(|| old_tabs.last().map(|(id, _)| id.clone()));
 
         let mut remap = std::collections::HashMap::with_capacity(old_tabs.len());
         let mut restored = Vec::with_capacity(old_tabs.len());
         for (old_id, tab) in old_tabs {
             let url = restored_url(&tab.url, start_url);
             let title = restored_title(&tab.title);
-            let new_id = tab_manager.create_tab(app, &window_label, &url)?;
+            let is_active_tab = target_active_old_id.as_deref() == Some(&old_id);
+
+            let new_id = if is_active_tab {
+                // Eagerly instantiate Webview only for the active tab to save CPU & RAM
+                tab_manager.create_tab(app, &window_label, &url)?
+            } else {
+                // Inactive tabs are hibernated: zero Webview creation overhead at launch
+                let id = uuid::Uuid::new_v4().to_string();
+                tab_manager.register_hibernated_tab(&window_label, id.clone(), &url);
+                id
+            };
+
             remap.insert(old_id, new_id.clone());
             restored.push((new_id, title, url, tab.is_pinned));
         }
 
         let active = {
-            let mut app_state = state.blocking_lock();
+            let mut app_state = state.write().expect("AppState write lock poisoned");
             let tab_ids: Vec<String> = restored.iter().map(|(id, ..)| id.clone()).collect();
             let active = {
                 let Some(window_state) = app_state.windows.get_mut(&window_label) else {
                     return Ok(0);
                 };
                 window_state.tab_ids = tab_ids;
-                let active = old_active
-                    .and_then(|id| remap.get(&id).cloned())
+                let active = target_active_old_id
+                    .as_ref()
+                    .and_then(|id| remap.get(id).cloned())
                     .or_else(|| window_state.tab_ids.last().cloned());
                 window_state.active_tab_id = active.clone();
                 active
@@ -294,8 +305,8 @@ impl<R: Runtime> WindowController<R> {
     /// Drops saved tab state for this window when the user disabled restore.
     fn clear_saved_tabs(&self, app: &AppHandle<R>) {
         let window_label = self.window.label();
-        let state = app.state::<Arc<tokio::sync::Mutex<crate::state::AppState>>>();
-        let mut app_state = state.blocking_lock();
+        let state = app.state::<Arc<std::sync::RwLock<crate::state::AppState>>>();
+        let mut app_state = state.write().expect("AppState write lock poisoned");
         if let Some(window_state) = app_state.windows.get_mut(window_label) {
             let old_ids = std::mem::take(&mut window_state.tab_ids);
             window_state.active_tab_id = None;
@@ -318,8 +329,8 @@ impl<R: Runtime> WindowController<R> {
         );
         let tab_id = tab_manager.create_tab(app, self.window.label(), start_url)?;
 
-        let state = app.state::<Arc<tokio::sync::Mutex<crate::state::AppState>>>();
-        let mut app_state = state.blocking_lock();
+        let state = app.state::<Arc<std::sync::RwLock<crate::state::AppState>>>();
+        let mut app_state = state.write().expect("AppState write lock poisoned");
         if let Some(window_state) = app_state.windows.get_mut(self.window.label()) {
             window_state.tab_ids.push(tab_id.clone());
             window_state.active_tab_id = Some(tab_id.clone());

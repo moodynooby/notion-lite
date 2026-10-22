@@ -64,10 +64,6 @@ impl<R: Runtime> TabController<R> {
         let active_theme = theming.get_active_theme();
         theming.inject_theme(&webview, &active_theme);
 
-        // Inject Notion-like Tab Bar, Actions, and Preferences Modal UI
-        let ui_script = get_injected_tab_bar_js(&tab_id, window_id, &active_theme);
-        let _ = webview.eval(&ui_script);
-
         Ok(Self {
             tab_id,
             window_id: window_id.to_string(),
@@ -203,9 +199,9 @@ pub fn create_secure_webview_builder<R: Runtime>(
                                 orchestrator.inner().create_tab(&nav_app, window_id, &notion_url)
                             {
                                 if let Some(state_lock) = nav_app.try_state::<Arc<
-                                    tokio::sync::Mutex<crate::state::AppState>,
+                                    std::sync::RwLock<crate::state::AppState>,
                                 >>() {
-                                    let mut app_state = state_lock.blocking_lock();
+                                    let mut app_state = state_lock.write().expect("AppState write lock poisoned");
                                     if let Some(w_state) = app_state.windows.get_mut(window_id) {
                                         w_state.tab_ids.push(new_id.clone());
                                         w_state.active_tab_id = Some(new_id.clone());
@@ -229,7 +225,7 @@ pub fn create_secure_webview_builder<R: Runtime>(
                                 let _ = orchestrator.inner().show_tab(&new_id);
 
                                 if let Some(w) = nav_app.get_window(window_id) {
-                                    for wv in w.webviews() {
+                                    if let Some(wv) = w.get_webview(&new_id) {
                                         let _ = wv.eval("if (window.NotionLite && window.NotionLite.refreshTabs) window.NotionLite.refreshTabs();");
                                     }
                                 }
@@ -240,10 +236,11 @@ pub fn create_secure_webview_builder<R: Runtime>(
                             nav_app.try_state::<Arc<dyn crate::traits::TabOrchestrator<R>>>()
                         {
                             let _ = orchestrator.inner().destroy_tab(tab_id_to_close);
+                            let mut new_active_id = None;
                             if let Some(state_lock) = nav_app.try_state::<Arc<
-                                tokio::sync::Mutex<crate::state::AppState>,
+                                std::sync::RwLock<crate::state::AppState>,
                             >>() {
-                                let mut app_state = state_lock.blocking_lock();
+                                let mut app_state = state_lock.write().expect("AppState write lock poisoned");
                                 app_state.tabs.remove(tab_id_to_close);
                                 for window_state in app_state.windows.values_mut() {
                                     if let Some(pos) = window_state.tab_ids.iter().position(|id| id == tab_id_to_close) {
@@ -254,6 +251,7 @@ pub fn create_secure_webview_builder<R: Runtime>(
                                                 let _ = orchestrator.inner().show_tab(new_active_tab_id);
                                             }
                                         }
+                                        new_active_id = window_state.active_tab_id.clone();
                                         let active_id_opt = window_state.active_tab_id.clone();
                                         for (id, t) in app_state.tabs.iter_mut() {
                                             t.is_active = Some(id.as_str()) == active_id_opt.as_deref();
@@ -264,8 +262,10 @@ pub fn create_secure_webview_builder<R: Runtime>(
                                 crate::state::persist_state(&nav_app, &app_state);
                             }
                             if let Some(w) = nav_app.get_window(window_id) {
-                                for wv in w.webviews() {
-                                    let _ = wv.eval("if (window.NotionLite && window.NotionLite.refreshTabs) window.NotionLite.refreshTabs();");
+                                if let Some(ref act_id) = new_active_id {
+                                    if let Some(wv) = w.get_webview(act_id) {
+                                        let _ = wv.eval("if (window.NotionLite && window.NotionLite.refreshTabs) window.NotionLite.refreshTabs();");
+                                    }
                                 }
                             }
                         }
@@ -275,9 +275,9 @@ pub fn create_secure_webview_builder<R: Runtime>(
                         {
                             let _ = orchestrator.inner().show_tab(tab_id_to_switch);
                             if let Some(state_lock) = nav_app.try_state::<Arc<
-                                tokio::sync::Mutex<crate::state::AppState>,
+                                std::sync::RwLock<crate::state::AppState>,
                             >>() {
-                                let mut app_state = state_lock.blocking_lock();
+                                let mut app_state = state_lock.write().expect("AppState write lock poisoned");
                                 for window_state in app_state.windows.values_mut() {
                                     if window_state.tab_ids.iter().any(|id| id == tab_id_to_switch) {
                                         window_state.active_tab_id = Some(tab_id_to_switch.to_string());
@@ -290,7 +290,7 @@ pub fn create_secure_webview_builder<R: Runtime>(
                                 crate::state::persist_state(&nav_app, &app_state);
                             }
                             if let Some(w) = nav_app.get_window(window_id) {
-                                for wv in w.webviews() {
+                                if let Some(wv) = w.get_webview(tab_id_to_switch) {
                                     let _ = wv.eval("if (window.NotionLite && window.NotionLite.refreshTabs) window.NotionLite.refreshTabs();");
                                 }
                             }

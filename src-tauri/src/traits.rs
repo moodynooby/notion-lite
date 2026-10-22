@@ -3,6 +3,8 @@ use tauri::{AppHandle, Runtime};
 /// Interface for tab navigation and orchestration
 pub trait TabOrchestrator<R: Runtime>: Send + Sync {
     fn create_tab(&self, app: &AppHandle<R>, window_id: &str, url: &str) -> tauri::Result<String>;
+    fn register_hibernated_tab(&self, window_id: &str, tab_id: String, url: &str);
+    fn set_app_handle(&self, app: AppHandle<R>);
     fn destroy_tab(&self, tab_id: &str) -> tauri::Result<()>;
     fn show_tab(&self, tab_id: &str) -> tauri::Result<()>;
     fn get_tab_ids(&self) -> Vec<String>;

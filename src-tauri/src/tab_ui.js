@@ -37,9 +37,10 @@
         throw new Error('Tauri IPC is not available in current context');
     };
 
-    // 1. Title Observer for syncing tab title
+    // 1. Debounced Title Observer for syncing tab title
     let lastTitle = document.title;
-    const titleObserver = new MutationObserver(function() {
+    let titleDebounceTimer = null;
+    const syncTitle = () => {
         if (document.title && document.title !== lastTitle) {
             lastTitle = document.title;
             safeInvoke('update_tab_state', {
@@ -51,11 +52,18 @@
                 window.NotionLite.refreshTabs();
             }
         }
+    };
+    const titleObserver = new MutationObserver(function() {
+        if (document.title !== lastTitle) {
+            if (titleDebounceTimer) clearTimeout(titleDebounceTimer);
+            titleDebounceTimer = setTimeout(syncTitle, 200);
+        }
     });
-    if (document.querySelector('title') || document.head) {
-        titleObserver.observe(document.querySelector('title') || document.head, {
-            subtree: true, characterData: true, childList: true
-        });
+    const titleNode = document.querySelector('title');
+    if (titleNode) {
+        titleObserver.observe(titleNode, { subtree: true, characterData: true, childList: true });
+    } else if (document.head) {
+        titleObserver.observe(document.head, { childList: true });
     }
 
     function runInit() {
@@ -594,7 +602,13 @@
         tabsStrip.className = 'nl-tabs-strip';
         tabsStrip.setAttribute('data-tauri-drag-region', '');
 
+        let lastTabsDigest = '';
         const updateTabsDom = (tabs) => {
+            const currentDigest = tabs.map(t => `${t.id}:${t.title}:${t.id === currentTabId}`).join('|');
+            if (currentDigest === lastTabsDigest && tabsStrip.children.length > 0) {
+                return; // Tabs haven't changed, skip DOM reconstruction
+            }
+            lastTabsDigest = currentDigest;
             tabsStrip.innerHTML = '';
             tabs.forEach(t => {
                 const tabEl = document.createElement('div');
@@ -751,13 +765,33 @@
         header.appendChild(tabsStrip);
         header.appendChild(actionsGroup);
 
-        // 4. Create Preferences Modal DOM
-        const modalBackdrop = document.createElement('div');
-        modalBackdrop.id = 'notion-lite-prefs-modal';
-        modalBackdrop.className = 'nl-modal-backdrop';
-        modalBackdrop.style.display = 'none';
+        document.body.appendChild(header);
 
-        modalBackdrop.innerHTML = `
+        // 4. Preferences Modal (Lazily created on demand to reduce per-tab DOM/memory overhead)
+        let modalBackdrop = null;
+        let selectedTheme = initialTheme;
+
+        const updateThemeSelection = (theme) => {
+            selectedTheme = theme;
+            if (modalBackdrop) {
+                modalBackdrop.querySelectorAll('.nl-theme-card').forEach(card => {
+                    card.classList.toggle('selected', card.getAttribute('data-theme') === theme);
+                });
+            }
+        };
+
+        const closePreferencesModal = () => {
+            if (modalBackdrop) modalBackdrop.style.display = 'none';
+        };
+
+        const ensurePreferencesModal = () => {
+            if (modalBackdrop) return;
+            modalBackdrop = document.createElement('div');
+            modalBackdrop.id = 'notion-lite-prefs-modal';
+            modalBackdrop.className = 'nl-modal-backdrop';
+            modalBackdrop.style.display = 'none';
+
+            modalBackdrop.innerHTML = `
             <div class="nl-modal-card">
                 <div class="nl-modal-header">
                     <div class="nl-modal-title">
@@ -823,21 +857,68 @@
             </div>
         `;
 
-        document.body.appendChild(header);
-        document.body.appendChild(modalBackdrop);
+            document.body.appendChild(modalBackdrop);
 
-        // Modal Controller
-        let selectedTheme = initialTheme;
-
-        const updateThemeSelection = (theme) => {
-            selectedTheme = theme;
-            document.querySelectorAll('.nl-theme-card').forEach(card => {
-                card.classList.toggle('selected', card.getAttribute('data-theme') === theme);
+            // Attach Modal Events
+            modalBackdrop.addEventListener('click', (e) => {
+                if (e.target === modalBackdrop) closePreferencesModal();
             });
+            document.getElementById('nl-prefs-close').onclick = closePreferencesModal;
+            document.getElementById('nl-btn-cancel').onclick = closePreferencesModal;
+
+            modalBackdrop.querySelectorAll('.nl-theme-card').forEach(card => {
+                card.onclick = () => {
+                    const th = card.getAttribute('data-theme');
+                    if (th) updateThemeSelection(th);
+                };
+            });
+
+            document.getElementById('nl-btn-check-updates').onclick = async () => {
+                const statusEl = document.getElementById('nl-update-status');
+                statusEl.textContent = 'Checking for updates...';
+                try {
+                    const hasUpdate = await safeInvoke('check_for_updates_command');
+                    statusEl.textContent = hasUpdate ? 'Update available! Downloading...' : 'App is up to date.';
+                } catch (err) {
+                    statusEl.textContent = 'Update check: ' + (err.message || err);
+                }
+            };
+
+            document.getElementById('nl-btn-open-config').onclick = async () => {
+                try {
+                    await safeInvoke('open_config_directory');
+                } catch {
+                    window.location.href = 'notion-lite-action://config:open_dir';
+                }
+            };
+
+            document.getElementById('nl-btn-save').onclick = async () => {
+                const showMenuBar = document.getElementById('nl-cfg-menu-bar').checked;
+                const restoreTabs = document.getElementById('nl-cfg-restore-tabs').checked;
+                const startUrl = document.getElementById('nl-cfg-start-url').value;
+
+                // Apply theme immediately to current window
+                document.documentElement.setAttribute('data-nl-theme', selectedTheme);
+
+                try {
+                    await safeInvoke('update_app_config', {
+                        payload: {
+                            active_theme: selectedTheme,
+                            show_menu_bar: showMenuBar,
+                            restore_tabs: restoreTabs,
+                            start_url: startUrl
+                        }
+                    });
+                } catch (err) {
+                    console.warn('[NotionLite] IPC update_app_config error:', err);
+                }
+                closePreferencesModal();
+                renderTabs();
+            };
         };
 
         const openPreferencesModal = async () => {
-            // ALWAYS show modal immediately
+            ensurePreferencesModal();
             modalBackdrop.style.display = 'flex';
             const curTheme = document.documentElement.getAttribute('data-nl-theme') || initialTheme;
             updateThemeSelection(curTheme);
@@ -854,74 +935,13 @@
                     const su = document.getElementById('nl-cfg-start-url');
                     if (su) su.value = cfg.start_url || '';
                     const vl = document.getElementById('nl-version-label');
-                    if (vl) vl.textContent = 'Notion Lite v' + (cfg.version || '0.3.29');
+                    if (vl) vl.textContent = 'Notion Lite v' + (cfg.version || '0.3.30');
                     const us = document.getElementById('nl-update-status');
                     if (us) us.textContent = '';
                 }
             } catch (e) {
                 console.warn('[NotionLite] Could not fetch live app config via IPC:', e);
             }
-        };
-
-        const closePreferencesModal = () => {
-            modalBackdrop.style.display = 'none';
-        };
-
-        // Attach Modal Events
-        modalBackdrop.addEventListener('click', (e) => {
-            if (e.target === modalBackdrop) closePreferencesModal();
-        });
-        document.getElementById('nl-prefs-close').onclick = closePreferencesModal;
-        document.getElementById('nl-btn-cancel').onclick = closePreferencesModal;
-
-        document.querySelectorAll('.nl-theme-card').forEach(card => {
-            card.onclick = () => {
-                const th = card.getAttribute('data-theme');
-                if (th) updateThemeSelection(th);
-            };
-        });
-
-        document.getElementById('nl-btn-check-updates').onclick = async () => {
-            const statusEl = document.getElementById('nl-update-status');
-            statusEl.textContent = 'Checking for updates...';
-            try {
-                const hasUpdate = await safeInvoke('check_for_updates_command');
-                statusEl.textContent = hasUpdate ? 'Update available! Downloading...' : 'App is up to date.';
-            } catch (err) {
-                statusEl.textContent = 'Update check: ' + (err.message || err);
-            }
-        };
-
-        document.getElementById('nl-btn-open-config').onclick = async () => {
-            try {
-                await safeInvoke('open_config_directory');
-            } catch {
-                window.location.href = 'notion-lite-action://config:open_dir';
-            }
-        };
-
-        document.getElementById('nl-btn-save').onclick = async () => {
-            const showMenuBar = document.getElementById('nl-cfg-menu-bar').checked;
-            const restoreTabs = document.getElementById('nl-cfg-restore-tabs').checked;
-            const startUrl = document.getElementById('nl-cfg-start-url').value;
-
-            // Apply theme immediately to current window
-            document.documentElement.setAttribute('data-nl-theme', selectedTheme);
-
-            try {
-                await safeInvoke('update_app_config', {
-                    payload: {
-                        active_theme: selectedTheme,
-                        show_menu_bar: showMenuBar,
-                        restore_tabs: restoreTabs,
-                        start_url: startUrl
-                    }
-                });
-            } catch (err) {
-                console.warn('[NotionLite] IPC update_app_config error:', err);
-            }
-            closePreferencesModal();
-            renderTabs();
         };
 
         // Keyboard Shortcuts

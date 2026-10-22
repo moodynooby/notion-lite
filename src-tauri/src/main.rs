@@ -60,7 +60,7 @@ fn main() {
 
     // Load saved state (if any)
     let app_state = AppState::load_from_disk(&app_secret_arc).unwrap_or_default();
-    let app_state = Arc::new(tokio::sync::Mutex::new(app_state));
+    let app_state = Arc::new(std::sync::RwLock::new(app_state));
 
     // Initialize Concrete Modules
     notion::security::init();
@@ -112,6 +112,9 @@ fn main() {
             notion::commands::toggle_menu_bar_command
         ])
         .setup(move |app| {
+            let handle = app.handle().clone();
+            tab_manager.set_app_handle(handle.clone());
+
             // Initialize modules in Tauri state FIRST as trait objects where expected
             app.manage::<Arc<dyn notion::traits::PolicyEnforcer>>(policy);
             app.manage::<Arc<dyn notion::traits::ThemingEngine<tauri::Wry>>>(theming);
@@ -122,7 +125,6 @@ fn main() {
             app.manage(SpellcheckManager::new());
             app.manage(app_secret_arc.clone());
 
-            let handle = app.handle().clone();
             i18n.load_locale(&handle, "default");
             app.manage(i18n);
 

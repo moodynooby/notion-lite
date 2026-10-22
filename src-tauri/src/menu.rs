@@ -331,8 +331,8 @@ pub fn set_theme<R: Runtime>(app: &AppHandle<R>, theme_name: &str) {
 }
 
 fn get_active_tab_id<R: Runtime>(app: &AppHandle<R>) -> Option<String> {
-    if let Some(state_lock) = app.try_state::<Arc<tokio::sync::Mutex<crate::state::AppState>>>() {
-        let app_state = state_lock.blocking_lock();
+    if let Some(state_lock) = app.try_state::<Arc<std::sync::RwLock<crate::state::AppState>>>() {
+        let app_state = state_lock.read().expect("AppState read lock poisoned");
         if let Some(w) = app_state.windows.get("main") {
             return w
                 .active_tab_id
