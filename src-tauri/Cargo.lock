@@ -2531,7 +2531,7 @@ dependencies = [
 
 [[package]]
 name = "notion-lite"
-version = "0.3.27"
+version = "0.3.29"
 dependencies = [
  "aes-gcm",
  "base64 0.22.1",

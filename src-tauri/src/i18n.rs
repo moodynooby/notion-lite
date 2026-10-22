@@ -4,6 +4,28 @@ use std::fs;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, State};
 
+pub fn normalize_locale(locale: &str) -> &str {
+    match locale {
+        "en" | "en_US" | "en-US" | "en_GB" | "en-GB" => "default",
+        other => other,
+    }
+}
+
+fn find_locale_dir(app: &AppHandle, locale_folder: &str) -> Option<std::path::PathBuf> {
+    let mut candidates = Vec::new();
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        candidates.push(resource_dir.join("i18n").join(locale_folder));
+    }
+    candidates.push(std::path::PathBuf::from("i18n").join(locale_folder));
+    candidates.push(
+        std::path::PathBuf::from("src-tauri")
+            .join("i18n")
+            .join(locale_folder),
+    );
+
+    candidates.into_iter().find(|p| p.is_dir())
+}
+
 pub struct I18nManager {
     translations: Mutex<HashMap<String, String>>,
     locale: Mutex<String>,
@@ -39,12 +61,12 @@ impl I18nManager {
             .lock()
             .expect("I18nManager: locale lock poisoned") = locale.to_string();
 
-        // Resolve path to bundled i18n JSON
-        if let Ok(resource_dir) = app.path().resource_dir() {
-            let i18n_dir = resource_dir.join("i18n").join(locale);
+        let normalized = normalize_locale(locale);
+        let locale_dir =
+            find_locale_dir(app, normalized).or_else(|| find_locale_dir(app, "default"));
 
-            // Try to find a JSON file in the locale directory
-            if let Ok(entries) = fs::read_dir(i18n_dir) {
+        if let Some(dir) = locale_dir {
+            if let Ok(entries) = fs::read_dir(dir) {
                 for entry in entries.flatten() {
                     if entry.path().extension().and_then(|s| s.to_str()) == Some("json") {
                         if let Ok(content) = fs::read_to_string(entry.path()) {
@@ -61,14 +83,22 @@ impl I18nManager {
                                         tr.insert(k, s.to_string());
                                     }
                                 }
-                                log::info!("Loaded locale: {}", locale);
+                                log::info!(
+                                    "Loaded locale: {} (resolved to {})",
+                                    locale,
+                                    normalized
+                                );
+                                return;
                             }
                         }
-                        break;
                     }
                 }
             }
         }
+        log::warn!(
+            "I18nManager: No translation files found for locale: {}",
+            locale
+        );
     }
 
     pub fn get(&self, key: &str) -> String {
@@ -117,5 +147,15 @@ mod tests {
         assert!(!validate_locale("en/US"));
         assert!(!validate_locale("en\\US"));
         assert!(!validate_locale("en;rm -rf /"));
+    }
+
+    #[test]
+    fn test_normalize_locale() {
+        assert_eq!(normalize_locale("en"), "default");
+        assert_eq!(normalize_locale("en_US"), "default");
+        assert_eq!(normalize_locale("en-US"), "default");
+        assert_eq!(normalize_locale("en_GB"), "default");
+        assert_eq!(normalize_locale("de_DE"), "de_DE");
+        assert_eq!(normalize_locale("fr_FR"), "fr_FR");
     }
 }

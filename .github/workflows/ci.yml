@@ -57,6 +57,7 @@ jobs:
         working-directory: src-tauri
         run: |
           export LIBCLANG_PATH=$(llvm-config --libdir)
+          export LD_LIBRARY_PATH=$(llvm-config --libdir):${LD_LIBRARY_PATH:-}
           cargo check --all-targets --release
 
       - name: cargo fmt
@@ -67,6 +68,7 @@ jobs:
         working-directory: src-tauri
         run: |
           export LIBCLANG_PATH=$(llvm-config --libdir)
+          export LD_LIBRARY_PATH=$(llvm-config --libdir):${LD_LIBRARY_PATH:-}
           cargo clippy --all-targets --release -- -D warnings
 
   # ────────────────────────────────────────────────────────────────
@@ -105,6 +107,7 @@ jobs:
         working-directory: src-tauri
         run: |
           export LIBCLANG_PATH=$(llvm-config --libdir)
+          export LD_LIBRARY_PATH=$(llvm-config --libdir):${LD_LIBRARY_PATH:-}
           cargo test --all-targets --release
 
   # ────────────────────────────────────────────────────────────────

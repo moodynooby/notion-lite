@@ -1,5 +1,5 @@
 use crate::config::NotionConfig;
-use crate::policy::is_notion_host;
+use crate::policy::{is_notion_host, is_trusted_oauth_host};
 use crate::state::AppState;
 use std::sync::Arc;
 use tauri::Manager;
@@ -7,12 +7,13 @@ use tauri::Manager;
 // Helper function to check if the command invocation origin is trusted
 fn is_trusted_origin<R: tauri::Runtime>(webview: &tauri::Webview<R>) -> bool {
     if let Ok(url) = webview.url() {
-        if url.scheme() == "tauri" && url.host_str() == Some("localhost") {
+        if (url.scheme() == "tauri" || url.scheme() == "wry") && url.host_str() == Some("localhost")
+        {
             return true;
         }
         if url.scheme() == "https" {
             if let Some(host) = url.host_str() {
-                if is_notion_host(host) {
+                if is_notion_host(host) || is_trusted_oauth_host(host) {
                     return true;
                 }
             }
@@ -113,6 +114,10 @@ pub fn close_tab(
                         let _ = orchestrator.show_tab(new_active_tab_id);
                     }
                 }
+                let active_id_opt = window_state.active_tab_id.clone();
+                for (id, t) in app_state.tabs.iter_mut() {
+                    t.is_active = Some(id.as_str()) == active_id_opt.as_deref();
+                }
                 break;
             }
         }
@@ -150,6 +155,9 @@ pub fn new_tab(
             if let Some(w_state) = app_state.windows.get_mut(&window_id) {
                 w_state.tab_ids.push(new_id.clone());
                 w_state.active_tab_id = Some(new_id.clone());
+            }
+            for t in app_state.tabs.values_mut() {
+                t.is_active = false;
             }
             app_state.tabs.insert(
                 new_id.clone(),

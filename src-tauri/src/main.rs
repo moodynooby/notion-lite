@@ -118,11 +118,13 @@ fn main() {
             app.manage::<Arc<dyn notion::traits::TabOrchestrator<tauri::Wry>>>(tab_manager);
             app.manage(config_arc.clone());
             app.manage(app_state);
-            app.manage(I18nManager::new());
+            let i18n = I18nManager::new();
             app.manage(SpellcheckManager::new());
             app.manage(app_secret_arc.clone());
 
             let handle = app.handle().clone();
+            i18n.load_locale(&handle, "default");
+            app.manage(i18n);
 
             // Native Menu Setup
             let _ = notion::menu::create_main_menu(&handle);

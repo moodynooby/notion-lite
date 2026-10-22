@@ -3,6 +3,12 @@ use std::path::PathBuf;
 use std::sync::RwLock;
 use tauri::{Runtime, Webview};
 
+pub fn escape_css_for_js_template(css: &str) -> String {
+    css.replace('\\', "\\\\")
+        .replace('`', "\\`")
+        .replace('$', "\\$")
+}
+
 pub struct ThemeManager {
     active_theme: RwLock<String>,
     custom_css_path: RwLock<Option<PathBuf>>,
@@ -98,8 +104,8 @@ impl<R: Runtime> ThemingEngine<R> for ThemeManager {
                 match std::fs::read_to_string(path) {
                     Ok(css) => {
                         log::info!("Loaded custom CSS from {}", path.display());
-                        // Escape backticks and backslashes to prevent JavaScript injection
-                        let escaped_css = css.replace('`', "\\`").replace('\\', "\\\\");
+                        // Escape backslashes, backticks, and dollar signs to prevent JavaScript template injection/syntax errors
+                        let escaped_css = escape_css_for_js_template(&css);
                         return format!("(function() {{
                             const style = document.getElementById('notion-custom-style') || document.createElement('style');
                             style.id = 'notion-custom-style';
@@ -140,5 +146,31 @@ impl<R: Runtime> ThemingEngine<R> for ThemeManager {
             .read()
             .expect("ThemeManager: active_theme read lock poisoned")
             .clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_escape_css_for_js_template() {
+        // Backslashes must be escaped
+        assert_eq!(
+            escape_css_for_js_template("content: '\\2022'"),
+            "content: '\\\\2022'"
+        );
+        // Backticks must be escaped without doubling the backslash
+        assert_eq!(
+            escape_css_for_js_template("body { font-family: `Consolas`; }"),
+            "body { font-family: \\`Consolas\\`; }"
+        );
+        // Mixed backslashes and backticks
+        assert_eq!(escape_css_for_js_template("a\\`b"), "a\\\\\\`b");
+        // Dollar signs must be escaped to prevent ${...} interpolation in template literals
+        assert_eq!(
+            escape_css_for_js_template("calc(${var} * 2)"),
+            "calc(\\${var} * 2)"
+        );
     }
 }

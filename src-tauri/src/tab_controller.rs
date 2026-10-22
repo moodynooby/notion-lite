@@ -191,7 +191,7 @@ pub fn create_secure_webview_builder<R: Runtime>(
                         }
                     } else if action == "tab:new" {
                         let notion_url = nav_app
-                            .try_state::<Arc<std::sync::RwLock<crate::config::LotionConfig>>>()
+                            .try_state::<Arc<std::sync::RwLock<crate::config::NotionConfig>>>()
                             .and_then(|c| {
                                 c.read().ok().map(|cfg| cfg.get_start_url().to_string())
                             })
@@ -209,6 +209,9 @@ pub fn create_secure_webview_builder<R: Runtime>(
                                     if let Some(w_state) = app_state.windows.get_mut(window_id) {
                                         w_state.tab_ids.push(new_id.clone());
                                         w_state.active_tab_id = Some(new_id.clone());
+                                    }
+                                    for t in app_state.tabs.values_mut() {
+                                        t.is_active = false;
                                     }
                                     app_state.tabs.insert(
                                         new_id.clone(),
@@ -251,6 +254,10 @@ pub fn create_secure_webview_builder<R: Runtime>(
                                                 let _ = orchestrator.inner().show_tab(new_active_tab_id);
                                             }
                                         }
+                                        let active_id_opt = window_state.active_tab_id.clone();
+                                        for (id, t) in app_state.tabs.iter_mut() {
+                                            t.is_active = Some(id.as_str()) == active_id_opt.as_deref();
+                                        }
                                         break;
                                     }
                                 }
@@ -277,6 +284,9 @@ pub fn create_secure_webview_builder<R: Runtime>(
                                         break;
                                     }
                                 }
+                                for (id, t) in app_state.tabs.iter_mut() {
+                                    t.is_active = id == tab_id_to_switch;
+                                }
                                 crate::state::persist_state(&nav_app, &app_state);
                             }
                             if let Some(w) = nav_app.get_window(window_id) {
@@ -286,7 +296,7 @@ pub fn create_secure_webview_builder<R: Runtime>(
                             }
                         }
                     } else if action == "config:open_dir" {
-                        let config_dir = crate::config::LotionConfig::config_dir();
+                        let config_dir = crate::config::NotionConfig::config_dir();
                         use tauri_plugin_shell::ShellExt;
                         #[allow(deprecated)]
                         let _ = nav_app.shell().open(config_dir.to_string_lossy().to_string(), None);

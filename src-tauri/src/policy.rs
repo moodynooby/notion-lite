@@ -11,6 +11,14 @@ pub fn is_notion_host(host: &str) -> bool {
         || host.ends_with(".notion.com")
 }
 
+/// True when `host` is an approved OAuth login provider.
+pub fn is_trusted_oauth_host(host: &str) -> bool {
+    let trusted = ["accounts.google.com", "appleid.apple.com"];
+    trusted
+        .iter()
+        .any(|t| host == *t || host.ends_with(&format!(".{}", t)))
+}
+
 #[derive(Default)]
 pub struct PolicyManager;
 
@@ -20,10 +28,7 @@ impl PolicyManager {
     }
 
     fn is_trusted_oauth(&self, host: &str) -> bool {
-        let trusted = ["accounts.google.com", "appleid.apple.com"];
-        trusted
-            .iter()
-            .any(|t| host == *t || host.ends_with(&format!(".{}", t)))
+        is_trusted_oauth_host(host)
     }
 }
 
@@ -232,5 +237,15 @@ mod tests {
         assert!(!is_notion_host("notion.com.evil.com"));
         assert!(!is_notion_host("notioncom"));
         assert!(!is_notion_host(""));
+    }
+
+    #[test]
+    fn test_is_trusted_oauth_host() {
+        assert!(is_trusted_oauth_host("accounts.google.com"));
+        assert!(is_trusted_oauth_host("sub.accounts.google.com"));
+        assert!(is_trusted_oauth_host("appleid.apple.com"));
+        assert!(!is_trusted_oauth_host("accounts.google.com.evil.com"));
+        assert!(!is_trusted_oauth_host("google.com"));
+        assert!(!is_trusted_oauth_host("evil-appleid.apple.com"));
     }
 }

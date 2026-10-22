@@ -12,7 +12,7 @@ pub fn create<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         return Ok(());
     };
 
-    let open_item = MenuItem::with_id(app, "tray_open", "Open Notion Lite", true, None::<&str>)?;
+    let open_item = MenuItem::with_id(app, "tray_open", "Open", true, None::<&str>)?;
     let check_updates_item = MenuItem::with_id(
         app,
         "tray_check_updates",
@@ -20,7 +20,7 @@ pub fn create<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         true,
         None::<&str>,
     )?;
-    let quit_item = MenuItem::with_id(app, "tray_quit", "Quit Notion Lite", true, None::<&str>)?;
+    let quit_item = MenuItem::with_id(app, "tray_quit", "Quit", true, None::<&str>)?;
 
     let tray_menu = MenuBuilder::new(app)
         .item(&open_item)
@@ -31,7 +31,6 @@ pub fn create<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
 
     let tray_builder = TrayIconBuilder::with_id("main-tray")
         .icon(icon.clone())
-        .tooltip("Notion Lite")
         .menu(&tray_menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {

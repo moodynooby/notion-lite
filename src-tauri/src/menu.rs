@@ -152,7 +152,7 @@ pub fn create_main_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     #[cfg(not(target_os = "macos"))]
     {
         let show_menu = if let Some(config_lock) =
-            app.try_state::<Arc<std::sync::RwLock<crate::config::LotionConfig>>>()
+            app.try_state::<Arc<std::sync::RwLock<crate::config::NotionConfig>>>()
         {
             config_lock.read().map(|c| c.show_menu_bar).unwrap_or(false)
         } else {
@@ -192,7 +192,7 @@ pub fn create_main_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             "nav_home" => {
                 log::info!("Menu: Home");
                 let home_url = if let Some(config_lock) =
-                    app_handle.try_state::<Arc<std::sync::RwLock<crate::config::LotionConfig>>>()
+                    app_handle.try_state::<Arc<std::sync::RwLock<crate::config::NotionConfig>>>()
                 {
                     config_lock
                         .read()
@@ -287,7 +287,7 @@ pub fn toggle_menu_bar<R: Runtime>(app: &AppHandle<R>) -> bool {
         log::warn!("Menu: Failed to set menu bar visibility: {}", e);
     }
     if let Some(config_lock) =
-        app.try_state::<Arc<std::sync::RwLock<crate::config::LotionConfig>>>()
+        app.try_state::<Arc<std::sync::RwLock<crate::config::NotionConfig>>>()
     {
         if let Ok(mut config) = config_lock.write() {
             config.show_menu_bar = new_state;
@@ -319,7 +319,7 @@ pub fn apply_theme<R: Runtime>(app: &AppHandle<R>, theme_name: &str) {
 pub fn set_theme<R: Runtime>(app: &AppHandle<R>, theme_name: &str) {
     apply_theme(app, theme_name);
     if let Some(config_lock) =
-        app.try_state::<Arc<std::sync::RwLock<crate::config::LotionConfig>>>()
+        app.try_state::<Arc<std::sync::RwLock<crate::config::NotionConfig>>>()
     {
         if let Ok(mut config) = config_lock.write() {
             config.active_theme = theme_name.to_string();

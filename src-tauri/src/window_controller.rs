@@ -8,21 +8,65 @@ pub struct WindowController<R: Runtime> {
 
 impl<R: Runtime> WindowController<R> {
     pub fn new(app: &AppHandle<R>) -> tauri::Result<Self> {
+        let (initial_width, initial_height, initial_x, initial_y, initial_maximized) = {
+            let app_state_lock = app.state::<Arc<tokio::sync::Mutex<crate::state::AppState>>>();
+            let app_state = app_state_lock.blocking_lock();
+            if let Some(w) = app_state.windows.get("main") {
+                let w_val = if w.bounds.width >= 300.0 {
+                    w.bounds.width
+                } else {
+                    1200.0
+                };
+                let h_val = if w.bounds.height >= 200.0 {
+                    w.bounds.height
+                } else {
+                    768.0
+                };
+                (w_val, h_val, w.bounds.x, w.bounds.y, w.is_maximized)
+            } else if let Some(config_lock) =
+                app.try_state::<Arc<std::sync::RwLock<crate::config::NotionConfig>>>()
+            {
+                let cfg = config_lock.read().ok();
+                let w_cfg = cfg.as_ref().map(|c| &c.window);
+                let w_val = w_cfg
+                    .map(|w| w.width)
+                    .filter(|w| *w >= 300.0)
+                    .unwrap_or(1200.0);
+                let h_val = w_cfg
+                    .map(|w| w.height)
+                    .filter(|h| *h >= 200.0)
+                    .unwrap_or(768.0);
+                let x_val = w_cfg.and_then(|w| w.x);
+                let y_val = w_cfg.and_then(|w| w.y);
+                let max_val = w_cfg.map(|w| w.maximized).unwrap_or(false);
+                (w_val, h_val, x_val, y_val, max_val)
+            } else {
+                (1200.0, 768.0, None, None, false)
+            }
+        };
+
         let mut builder = WindowBuilder::new(app, "main")
             .title("Notion Lite")
-            .inner_size(1200.0, 768.0)
+            .inner_size(initial_width, initial_height)
             .decorations(false)
             .resizable(true);
+
+        if let (Some(x), Some(y)) = (initial_x, initial_y) {
+            builder = builder.position(x, y);
+        }
+
+        if initial_maximized {
+            builder = builder.maximized(true);
+        }
 
         if let Some(icon) = app.default_window_icon() {
             builder = builder.icon(icon.clone())?;
         }
 
         let window = builder.build()?;
-        let _ = window.set_decorations(false);
 
         let show_menu = if let Some(config_lock) =
-            app.try_state::<Arc<std::sync::RwLock<crate::config::LotionConfig>>>()
+            app.try_state::<Arc<std::sync::RwLock<crate::config::NotionConfig>>>()
         {
             config_lock.read().map(|c| c.show_menu_bar).unwrap_or(false)
         } else {
@@ -76,6 +120,10 @@ impl<R: Runtime> WindowController<R> {
                     window_label
                 );
                 api.prevent_close();
+                let app_state_lock =
+                    app_handle.state::<Arc<tokio::sync::Mutex<crate::state::AppState>>>();
+                let app_state = app_state_lock.blocking_lock();
+                crate::state::persist_state(&app_handle, &app_state);
                 let _ = window_clone.hide();
             }
             tauri::WindowEvent::Focused(focused) => {
@@ -107,19 +155,8 @@ impl<R: Runtime> WindowController<R> {
                             }
                         }
                     }
-                }
-                let mut changed = false;
-                if let Some(w_state) = app_state.windows.get_mut(&window_label) {
-                    if (w_state.bounds.width - size.width as f64).abs() > 1.0
-                        || (w_state.bounds.height - size.height as f64).abs() > 1.0
-                    {
-                        w_state.bounds.width = size.width as f64;
-                        w_state.bounds.height = size.height as f64;
-                        changed = true;
-                    }
-                }
-                if changed {
-                    crate::state::persist_state(&app_handle, &app_state);
+                    w_state.bounds.width = size.width as f64;
+                    w_state.bounds.height = size.height as f64;
                 }
             }
             tauri::WindowEvent::Moved(position) => {
@@ -127,18 +164,9 @@ impl<R: Runtime> WindowController<R> {
                 let app_state_lock =
                     app_handle.state::<Arc<tokio::sync::Mutex<crate::state::AppState>>>();
                 let mut app_state = app_state_lock.blocking_lock();
-                let mut changed = false;
                 if let Some(w_state) = app_state.windows.get_mut(&window_label) {
-                    if w_state.bounds.x != Some(position.x as f64)
-                        || w_state.bounds.y != Some(position.y as f64)
-                    {
-                        w_state.bounds.x = Some(position.x as f64);
-                        w_state.bounds.y = Some(position.y as f64);
-                        changed = true;
-                    }
-                }
-                if changed {
-                    crate::state::persist_state(&app_handle, &app_state);
+                    w_state.bounds.x = Some(position.x as f64);
+                    w_state.bounds.y = Some(position.y as f64);
                 }
             }
             _ => {}
@@ -155,7 +183,7 @@ impl<R: Runtime> WindowController<R> {
             .clone();
 
         let (restore_tabs, start_url) = {
-            let config = app.state::<Arc<std::sync::RwLock<crate::config::LotionConfig>>>();
+            let config = app.state::<Arc<std::sync::RwLock<crate::config::NotionConfig>>>();
             let config = config
                 .read()
                 .map_err(|e| tauri::Error::AssetNotFound(e.to_string()))?;

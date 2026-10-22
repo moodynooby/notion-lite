@@ -622,7 +622,7 @@
                         setTimeout(renderTabs, 50);
                     } catch (err) {
                         console.warn('[NotionLite] close_tab fallback:', err);
-                        window.location.href = 'notion-action://tab:close:' + t.id;
+                        window.location.href = 'notion-lite-action://tab:close:' + t.id;
                     }
                 };
 
@@ -636,7 +636,7 @@
                             await safeInvoke('switch_tab', { tabId: t.id });
                         } catch (err) {
                             console.warn('[NotionLite] switch_tab fallback:', err);
-                            window.location.href = 'notion-action://tab:switch:' + t.id;
+                            window.location.href = 'notion-lite-action://tab:switch:' + t.id;
                         }
                     }
                 };
@@ -655,7 +655,7 @@
                     setTimeout(renderTabs, 300);
                 } catch (err) {
                     console.warn('[NotionLite] new_tab fallback:', err);
-                    window.location.href = 'notion-action://tab:new';
+                    window.location.href = 'notion-lite-action://tab:new';
                 }
             };
             tabsStrip.appendChild(newTabBtn);
@@ -702,7 +702,7 @@
             try {
                 await safeInvoke('minimize_window', { windowId: currentWindowId });
             } catch {
-                window.location.href = 'notion-action://window:minimize';
+                window.location.href = 'notion-lite-action://window:minimize';
             }
         };
 
@@ -715,7 +715,7 @@
             try {
                 await safeInvoke('maximize_window', { windowId: currentWindowId });
             } catch {
-                window.location.href = 'notion-action://window:maximize';
+                window.location.href = 'notion-lite-action://window:maximize';
             }
         };
 
@@ -728,7 +728,7 @@
             try {
                 await safeInvoke('close_window', { windowId: currentWindowId });
             } catch {
-                window.location.href = 'notion-action://window:close';
+                window.location.href = 'notion-lite-action://window:close';
             }
         };
 
@@ -854,7 +854,7 @@
                     const su = document.getElementById('nl-cfg-start-url');
                     if (su) su.value = cfg.start_url || '';
                     const vl = document.getElementById('nl-version-label');
-                    if (vl) vl.textContent = 'Notion Lite v' + (cfg.version || '0.3.25');
+                    if (vl) vl.textContent = 'Notion Lite v' + (cfg.version || '0.3.29');
                     const us = document.getElementById('nl-update-status');
                     if (us) us.textContent = '';
                 }
@@ -896,7 +896,7 @@
             try {
                 await safeInvoke('open_config_directory');
             } catch {
-                window.location.href = 'notion-action://config:open_dir';
+                window.location.href = 'notion-lite-action://config:open_dir';
             }
         };
 
