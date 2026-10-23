@@ -12,6 +12,8 @@
 mod linux;
 #[cfg(target_os = "windows")]
 mod windows;
+#[cfg(target_os = "macos")]
+mod macos;
 
 pub struct LiteBox {
     initialized: bool,
@@ -46,15 +48,50 @@ impl LiteBox {
             windows::apply_windows_sandbox()?;
         }
 
+        #[cfg(target_os = "macos")]
+        {
+            log::info!("LiteBox: Applying macOS process boundary restrictions");
+            macos::apply_macos_sandbox()?;
+        }
+
+        #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
+        {
+            apply_fallback_sandbox()?;
+        }
+
         self.initialized = true;
         Ok(())
     }
 }
 
-// Fallback for macOS or unimplemented OS
-#[allow(dead_code)]
-#[cfg(not(any(target_os = "linux", target_os = "windows")))]
+// Fallback for unimplemented OS
+#[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
 fn apply_fallback_sandbox() -> Result<(), String> {
     log::warn!("LiteBox: No OS-level sandbox implemented for this platform. Running dangerously.");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_litebox_initialization() {
+        let mut litebox = LiteBox::new();
+        assert!(!litebox.initialized);
+
+        let result = litebox.apply_sandbox();
+        assert!(result.is_ok());
+        assert!(litebox.initialized);
+
+        // Subsequent call should succeed immediately without errors
+        let second_result = litebox.apply_sandbox();
+        assert!(second_result.is_ok());
+    }
+
+    #[test]
+    fn test_litebox_default() {
+        let litebox = LiteBox::default();
+        assert!(!litebox.initialized);
+    }
 }
