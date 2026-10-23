@@ -90,7 +90,7 @@ pub fn switch_tab(
         for (id, t) in app_state.tabs.iter_mut() {
             t.is_active = id == &tab_id;
         }
-        crate::state::persist_state(&app, &app_state);
+        crate::state::persist_state(&app);
     }
 
     refresh_active_tab_ui(&app, "main", Some(&tab_id));
@@ -135,7 +135,7 @@ pub fn close_tab(
             }
         }
 
-        crate::state::persist_state(&app, &app_state);
+        crate::state::persist_state(&app);
     }
 
     refresh_active_tab_ui(&app, "main", new_active_id.as_deref());
@@ -178,7 +178,7 @@ pub fn new_tab(
                     is_pinned: false,
                 },
             );
-            crate::state::persist_state(&app, &app_state);
+            crate::state::persist_state(&app);
         }
 
         let _ = orchestrator.show_tab(&new_id);
@@ -232,7 +232,7 @@ pub fn update_tab_state(
         }
     }
 
-    crate::state::persist_state(&app, &app_state);
+    crate::state::persist_state(&app);
     log::debug!(
         "[notion-state] Updated tab {} (title: {}, url: {})",
         tab_id,
