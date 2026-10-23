@@ -16,7 +16,7 @@
 
 **Notion Lite** is a complete, lightweight rewrite in Rust. It replaces the heavy Electron/Node.js stack with [Tauri v2](https://v2.tauri.app/) for OS integration and a native injected UI, eliminating the heavy runtime overhead of a Chromium-based shell while adding a hardened, Zero-Trust security model aligned with the [SecByDesign Collective Manifesto](https://github.com/SecByDesignCollective/Manifesto).
 
-The result is a fast, memory-efficient, privacy-respecting Notion client that runs natively on Linux — and nowhere compromises on security. v0.3.0 introduces zero-trust hardening, event-driven tab updates, and seamless configuration migration.
+The result is a fast, memory-efficient, privacy-respecting Notion client that runs natively on Linux — and nowhere compromises on security. v0.3.0 introduces zero-trust hardening, event-driven tab updates, and hardened session persistence.
 
 ---
 
@@ -204,7 +204,7 @@ cargo tauri dev
 
 ## Configuration
 
-Notion Lite stores its configuration at `~/.config/notion-lite/config.toml`. The file is created automatically on first run with sensible defaults (with automatic migration from legacy `notion` or `lotion-rs` directories).
+Notion Lite stores its configuration at `~/.config/notion-lite/config.toml`. The file is created automatically on first run with sensible defaults.
 
 ```toml
 # Active UI theme

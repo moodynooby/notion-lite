@@ -83,7 +83,9 @@ impl<R: Runtime> WindowController<R> {
 
         // Ensure window state exists in AppState
         let app_state_lock = app.state::<Arc<std::sync::RwLock<crate::state::AppState>>>();
-        let mut app_state = app_state_lock.write().expect("AppState write lock poisoned");
+        let mut app_state = app_state_lock
+            .write()
+            .expect("AppState write lock poisoned");
         if !app_state.windows.contains_key("main") {
             app_state.windows.insert(
                 "main".to_string(),
@@ -130,7 +132,9 @@ impl<R: Runtime> WindowController<R> {
                 log::debug!("Window {} focused: {}", window_label, focused);
                 let app_state_lock =
                     app_handle.state::<Arc<std::sync::RwLock<crate::state::AppState>>>();
-                let mut app_state = app_state_lock.write().expect("AppState write lock poisoned");
+                let mut app_state = app_state_lock
+                    .write()
+                    .expect("AppState write lock poisoned");
                 if *focused {
                     app_state.focused_window_id = Some(window_label.clone());
                 }

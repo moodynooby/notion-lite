@@ -5,7 +5,11 @@ use std::sync::Arc;
 use tauri::Manager;
 
 // Helper function to refresh tab UI only on the active visible webview
-fn refresh_active_tab_ui(app: &tauri::AppHandle<tauri::Wry>, window_id: &str, active_tab_id: Option<&str>) {
+fn refresh_active_tab_ui(
+    app: &tauri::AppHandle<tauri::Wry>,
+    window_id: &str,
+    active_tab_id: Option<&str>,
+) {
     if let Some(w) = app.get_window(window_id) {
         if let Some(tab_id) = active_tab_id {
             if let Some(wv) = w.get_webview(tab_id) {
@@ -319,7 +323,7 @@ pub fn get_app_config(
     }
     let config = config_state.read().map_err(|e| e.to_string())?;
     Ok(ConfigDto {
-        active_theme: config.active_theme.clone(),
+        active_theme: crate::theming::normalize_theme_name(&config.active_theme).to_string(),
         show_menu_bar: config.show_menu_bar,
         restore_tabs: config.restore_tabs,
         start_url: config.get_start_url().to_string(),
@@ -343,6 +347,7 @@ pub fn update_app_config(
     let mut menu_visibility = None;
 
     if let Some(new_theme) = payload.active_theme {
+        let new_theme = crate::theming::normalize_theme_name(&new_theme).to_string();
         if config.active_theme != new_theme {
             config.active_theme = new_theme.clone();
             theme_to_apply = Some(new_theme);

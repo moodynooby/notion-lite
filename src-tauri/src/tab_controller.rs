@@ -139,12 +139,24 @@ pub fn create_secure_webview_builder<R: Runtime>(
     window_id: &str,
     policy: Arc<dyn PolicyEnforcer>,
 ) -> WebviewBuilder<R> {
-    let theme_name = if let Some(theming) = app.try_state::<Arc<dyn ThemingEngine<R>>>() {
-        theming.get_active_theme()
-    } else {
-        "dracula".to_string()
-    };
-    let script = get_injected_tab_bar_js(label, window_id, &theme_name);
+    let (theme_name, custom_css) =
+        if let Some(theming) = app.try_state::<Arc<dyn ThemingEngine<R>>>() {
+            (theming.get_active_theme(), theming.get_custom_css())
+        } else {
+            ("dracula".to_string(), String::new())
+        };
+
+    // Theme CSS is part of the initialization script so it is re-applied on
+    // every document load. A one-shot `eval()` after webview creation lands in
+    // the pre-navigation document and is lost as soon as Notion commits.
+    let mut script = get_injected_tab_bar_js(label, window_id, &theme_name);
+    script.push('\n');
+    script.push_str(&crate::theming::theme_init_script(&theme_name));
+    if !custom_css.is_empty() {
+        script.push('\n');
+        script.push_str(&custom_css);
+    }
+
     let webview_builder = WebviewBuilder::new(label, WebviewUrl::External(url.clone()))
         .user_agent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36")
         .initialization_script(&script);

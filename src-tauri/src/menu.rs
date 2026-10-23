@@ -249,9 +249,10 @@ pub fn create_main_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                 });
             }
             theme_id if theme_id.starts_with("theme_") => {
-                let theme_name = theme_id.replace("theme_", "");
+                let theme_name =
+                    crate::theming::normalize_theme_name(theme_id.trim_start_matches("theme_"));
                 log::info!("Menu: Switch theme to {}", theme_name);
-                set_theme(app_handle, &theme_name);
+                set_theme(app_handle, theme_name);
             }
             _ => {}
         }
@@ -304,6 +305,7 @@ pub fn toggle_menu_bar<R: Runtime>(app: &AppHandle<R>) -> bool {
 /// Callers that already hold the config lock must use this and save the theme
 /// themselves; [`set_theme`] is for callers that do not hold the lock.
 pub fn apply_theme<R: Runtime>(app: &AppHandle<R>, theme_name: &str) {
+    let theme_name = crate::theming::normalize_theme_name(theme_name);
     let Some(theming) = app.try_state::<Arc<dyn ThemingEngine<R>>>() else {
         return;
     };
@@ -317,6 +319,9 @@ pub fn apply_theme<R: Runtime>(app: &AppHandle<R>, theme_name: &str) {
 
 /// Applies a theme and persists it as the active theme.
 pub fn set_theme<R: Runtime>(app: &AppHandle<R>, theme_name: &str) {
+    // Persist the normalized name so the config file only ever holds a theme
+    // the engine actually implements.
+    let theme_name = crate::theming::normalize_theme_name(theme_name);
     apply_theme(app, theme_name);
     if let Some(config_lock) =
         app.try_state::<Arc<std::sync::RwLock<crate::config::NotionConfig>>>()

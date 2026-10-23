@@ -84,64 +84,8 @@ impl NotionConfig {
         Self::config_dir().join("config.toml")
     }
 
-    /// Migrate config from ~/.config/notion, ~/.config/lotion-rs or ~/.config/lotion to ~/.config/notion-lite if needed
-    fn migrate_legacy_config() {
-        let new_dir = Self::config_dir();
-        if new_dir.exists() {
-            return;
-        }
-
-        let base_config = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
-        let candidate_dirs = [
-            base_config.join("notion"),
-            base_config.join("lotion-rs"),
-            base_config.join("lotion"),
-        ];
-
-        for old_dir in &candidate_dirs {
-            if old_dir.exists() {
-                log::info!(
-                    "Migrating legacy config from {} to {}",
-                    old_dir.display(),
-                    new_dir.display()
-                );
-                if let Err(e) = fs::create_dir_all(&new_dir) {
-                    log::error!("Failed to create new config dir: {}", e);
-                    return;
-                }
-
-                // Copy config.toml
-                let old_config = old_dir.join("config.toml");
-                if old_config.exists() {
-                    if let Err(e) = fs::copy(&old_config, new_dir.join("config.toml")) {
-                        log::error!("Failed to migrate config.toml: {}", e);
-                    }
-                }
-
-                // Copy state.json
-                let old_state = old_dir.join("state.json");
-                if old_state.exists() {
-                    if let Err(e) = fs::copy(&old_state, new_dir.join("state.json")) {
-                        log::error!("Failed to migrate state.json: {}", e);
-                    }
-                }
-
-                // Copy secret_key if present
-                let old_secret = old_dir.join("secret_key");
-                if old_secret.exists() {
-                    if let Err(e) = fs::copy(&old_secret, new_dir.join("secret_key")) {
-                        log::error!("Failed to migrate secret_key: {}", e);
-                    }
-                }
-
-                break;
-            }
-        }
-    }
-
     /// Load config from disk, or create default if not found.
     pub fn load() -> Self {
-        Self::migrate_legacy_config();
         let path = Self::config_path();
         if path.exists() {
             match fs::read_to_string(&path) {
@@ -201,31 +145,6 @@ impl NotionConfig {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
-
-    #[test]
-    fn test_config_migration() {
-        let temp_base = tempfile::tempdir().unwrap();
-        let old_dir = temp_base.path().join("notion");
-        let new_dir = temp_base.path().join("notion-lite");
-
-        fs::create_dir_all(&old_dir).unwrap();
-        fs::write(old_dir.join("config.toml"), "active_theme = 'nord'").unwrap();
-        fs::write(old_dir.join("state.json"), "{}").unwrap();
-
-        // Manual migration trigger logic with custom paths
-        if old_dir.exists() && !new_dir.exists() {
-            fs::create_dir_all(&new_dir).unwrap();
-            fs::copy(old_dir.join("config.toml"), new_dir.join("config.toml")).unwrap();
-            fs::copy(old_dir.join("state.json"), new_dir.join("state.json")).unwrap();
-        }
-
-        assert!(new_dir.join("config.toml").exists());
-        assert!(new_dir.join("state.json").exists());
-        let contents = fs::read_to_string(new_dir.join("config.toml")).unwrap();
-        assert!(contents.contains("nord"));
-    }
-
     #[test]
     fn test_start_url_default_and_custom() {
         let default_config = super::NotionConfig::default();

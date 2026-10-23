@@ -1,6 +1,6 @@
 {
     "productName": "Notion Lite",
-    "version": "0.3.30",
+    "version": "0.3.31",
     "identifier": "io.notion-lite.desktop",
     "build": {
         "frontendDist": "assets"
