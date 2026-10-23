@@ -394,11 +394,10 @@ pub fn open_config_directory(
     if !is_trusted_origin(&webview) {
         return Err("Untrusted origin".to_string());
     }
-    use tauri_plugin_shell::ShellExt;
+    use tauri_plugin_opener::OpenerExt;
     let config_dir = NotionConfig::config_dir().to_string_lossy().to_string();
-    #[allow(deprecated)]
-    app.shell()
-        .open(config_dir, None)
+    app.opener()
+        .open_path(config_dir, None::<&str>)
         .map_err(|e| e.to_string())?;
     Ok(())
 }
