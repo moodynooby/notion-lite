@@ -309,9 +309,8 @@ pub fn create_secure_webview_builder<R: Runtime>(
                         }
                     } else if action == "config:open_dir" {
                         let config_dir = crate::config::NotionConfig::config_dir();
-                        use tauri_plugin_shell::ShellExt;
-                        #[allow(deprecated)]
-                        let _ = nav_app.shell().open(config_dir.to_string_lossy().to_string(), None);
+                        use tauri_plugin_opener::OpenerExt;
+                        let _ = nav_app.opener().open_path(config_dir.to_string_lossy().to_string(), None::<&str>);
                     } else {
                         log::warn!("Unknown Lotion action: {}", action);
                     }
@@ -326,9 +325,8 @@ pub fn create_secure_webview_builder<R: Runtime>(
                     "Zero-Trust: Opening validated external link in default browser: {}",
                     url_str
                 );
-                use tauri_plugin_shell::ShellExt;
-                #[allow(deprecated)]
-                let _ = nav_app.shell().open(url_str.to_string(), None);
+                use tauri_plugin_opener::OpenerExt;
+                let _ = nav_app.opener().open_url(url_str, None::<&str>);
                 false // Block navigation in the webview
             } else {
                 log::warn!(
@@ -339,7 +337,7 @@ pub fn create_secure_webview_builder<R: Runtime>(
             }
         })
         .on_new_window(move |url, _| {
-            use tauri_plugin_shell::ShellExt;
+            use tauri_plugin_opener::OpenerExt;
             let url_str = url.as_str();
 
             if popup_policy.should_route_popup_to_system_browser(url_str) {
@@ -348,8 +346,7 @@ pub fn create_secure_webview_builder<R: Runtime>(
                         "Routing new window request (popup) to system browser: {}",
                         url_str
                     );
-                    #[allow(deprecated)]
-                    let _ = popup_app.shell().open(url_str.to_string(), None);
+                    let _ = popup_app.opener().open_url(url_str, None::<&str>);
                 } else {
                     log::warn!(
                         "Zero-Trust: BLOCKED unauthorized popup attempt to: {}",
