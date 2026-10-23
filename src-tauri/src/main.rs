@@ -90,6 +90,7 @@ fn main() {
                 let _ = window.show();
                 let _ = window.unminimize();
                 let _ = window.set_focus();
+                notion::window_controller::on_window_foregrounded(app, "main");
             }
         }))
         .invoke_handler(tauri::generate_handler![
