@@ -14,9 +14,12 @@ pub fn is_notion_host(host: &str) -> bool {
 /// True when `host` is an approved OAuth login provider.
 pub fn is_trusted_oauth_host(host: &str) -> bool {
     let trusted = ["accounts.google.com", "appleid.apple.com"];
-    trusted
-        .iter()
-        .any(|t| host == *t || host.ends_with(&format!(".{}", t)))
+    trusted.iter().any(|t| {
+        host == *t
+            || (host.ends_with(t)
+                && host.len() > t.len()
+                && host.as_bytes()[host.len() - t.len() - 1] == b'.')
+    })
 }
 
 #[derive(Default)]
@@ -87,10 +90,12 @@ impl PolicyEnforcer for PolicyManager {
                     "mixpanel.com",
                     "segment.com",
                 ];
-                if trackers
-                    .iter()
-                    .any(|t| host == *t || host.ends_with(&format!(".{}", t)))
-                {
+                if trackers.iter().any(|t| {
+                    host == *t
+                        || (host.ends_with(t)
+                            && host.len() > t.len()
+                            && host.as_bytes()[host.len() - t.len() - 1] == b'.')
+                }) {
                     log::warn!("PolicyManager: BLOCKED tracker/telemetry domain: {}", host);
                     return false;
                 }
