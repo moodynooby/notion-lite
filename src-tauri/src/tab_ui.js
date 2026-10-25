@@ -37,10 +37,14 @@
         throw new Error('Tauri IPC is not available in current context');
     };
 
+    // Track background state for title observation and UI throttling
+    let isBackgrounded = false;
+
     // 1. Debounced Title Observer for syncing tab title
     let lastTitle = document.title;
     let titleDebounceTimer = null;
     const syncTitle = () => {
+        if (isBackgrounded) return;
         if (document.title && document.title !== lastTitle) {
             lastTitle = document.title;
             safeInvoke('update_tab_state', {
@@ -54,6 +58,7 @@
         }
     };
     const titleObserver = new MutationObserver(function() {
+        if (isBackgrounded) return;
         if (document.title !== lastTitle) {
             if (titleDebounceTimer) clearTimeout(titleDebounceTimer);
             titleDebounceTimer = setTimeout(syncTitle, 200);
@@ -960,7 +965,6 @@
         });
 
         // Background Throttling & RAM Optimization Handlers
-        let isBackgrounded = false;
         let originalRaf = window.requestAnimationFrame;
 
         const stubRaf = (callback) => {
@@ -978,6 +982,16 @@
             if (isBackgrounded) return;
             isBackgrounded = true;
             console.log('[NotionLite] Background mode active: throttling UI rendering & media');
+
+            if (titleObserver) {
+                try {
+                    titleObserver.disconnect();
+                } catch (e) {}
+            }
+            if (titleDebounceTimer) {
+                clearTimeout(titleDebounceTimer);
+                titleDebounceTimer = null;
+            }
 
             try {
                 document.querySelectorAll('audio, video').forEach(el => {
@@ -1009,6 +1023,14 @@
             if (!isBackgrounded) return;
             isBackgrounded = false;
             console.log('[NotionLite] Foreground mode restored: resuming full UI activity');
+
+            try {
+                if (titleNode) {
+                    titleObserver.observe(titleNode, { subtree: true, characterData: true, childList: true });
+                } else if (document.head) {
+                    titleObserver.observe(document.head, { childList: true });
+                }
+            } catch (e) {}
 
             try {
                 if (originalRaf) {
