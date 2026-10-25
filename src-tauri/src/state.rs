@@ -186,7 +186,11 @@ impl AppState {
 /// Rapid window/tab mutations are coalesced so that state is not encrypted
 /// and written to disk continuously. The actual encryption and disk I/O run
 /// on a worker thread pool via `spawn_blocking`.
-pub fn persist_state<R: Runtime>(app: &AppHandle<R>, state: &AppState) {
+///
+/// Rather than eagerly cloning `AppState` on every state change, this function
+/// reads the latest `AppState` through a read lock inside `spawn_blocking` only
+/// after the debounce delay completes.
+pub fn persist_state<R: Runtime>(app: &AppHandle<R>) {
     let secret = match app.try_state::<std::sync::Arc<Vec<u8>>>() {
         Some(s) => s.inner().clone(),
         None => {
@@ -194,7 +198,13 @@ pub fn persist_state<R: Runtime>(app: &AppHandle<R>, state: &AppState) {
             return;
         }
     };
-    let state_clone = state.clone();
+    let state_lock = match app.try_state::<std::sync::Arc<std::sync::RwLock<AppState>>>() {
+        Some(s) => s.inner().clone(),
+        None => {
+            log::error!("AppState state not managed; state not saved");
+            return;
+        }
+    };
     let current_ver = STATE_DIRTY_VERSION.fetch_add(1, Ordering::SeqCst) + 1;
 
     tauri::async_runtime::spawn(async move {
@@ -202,7 +212,14 @@ pub fn persist_state<R: Runtime>(app: &AppHandle<R>, state: &AppState) {
         // Only write if no newer update has superseded this one
         if STATE_DIRTY_VERSION.load(Ordering::SeqCst) == current_ver {
             tauri::async_runtime::spawn_blocking(move || {
-                if let Err(e) = state_clone.save_to_disk(&secret) {
+                let app_state = match state_lock.read() {
+                    Ok(guard) => guard,
+                    Err(e) => {
+                        log::error!("AppState read lock poisoned during save: {}", e);
+                        return;
+                    }
+                };
+                if let Err(e) = app_state.save_to_disk(&secret) {
                     log::error!("Failed to save application state: {}", e);
                 }
             });

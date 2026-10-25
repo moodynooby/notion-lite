@@ -37,10 +37,14 @@
         throw new Error('Tauri IPC is not available in current context');
     };
 
+    // Track background state for title observation and UI throttling
+    let isBackgrounded = false;
+
     // 1. Debounced Title Observer for syncing tab title
     let lastTitle = document.title;
     let titleDebounceTimer = null;
     const syncTitle = () => {
+        if (isBackgrounded) return;
         if (document.title && document.title !== lastTitle) {
             lastTitle = document.title;
             safeInvoke('update_tab_state', {
@@ -54,6 +58,7 @@
         }
     };
     const titleObserver = new MutationObserver(function() {
+        if (isBackgrounded) return;
         if (document.title !== lastTitle) {
             if (titleDebounceTimer) clearTimeout(titleDebounceTimer);
             titleDebounceTimer = setTimeout(syncTitle, 200);
