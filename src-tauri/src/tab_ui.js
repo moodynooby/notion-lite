@@ -959,68 +959,6 @@
             }
         });
 
-        // Background Throttling & RAM Optimization Handlers
-        let isBackgrounded = false;
-        let originalRaf = window.requestAnimationFrame;
-
-        const stubRaf = (callback) => {
-            if (!isBackgrounded) {
-                return originalRaf ? originalRaf(callback) : setTimeout(() => callback(performance.now()), 16);
-            }
-            return setTimeout(() => {
-                if (typeof callback === 'function') {
-                    callback(performance.now());
-                }
-            }, 1000);
-        };
-
-        const onBackground = () => {
-            if (isBackgrounded) return;
-            isBackgrounded = true;
-            console.log('[NotionLite] Background mode active: throttling UI rendering & media');
-
-            try {
-                document.querySelectorAll('audio, video').forEach(el => {
-                    if (!el.paused && typeof el.pause === 'function') {
-                        el.pause();
-                    }
-                });
-            } catch (e) {
-                console.warn('[NotionLite] Pause media error:', e);
-            }
-
-            try {
-                if (window.requestAnimationFrame !== stubRaf) {
-                    originalRaf = window.requestAnimationFrame;
-                    window.requestAnimationFrame = stubRaf;
-                }
-            } catch (e) {
-                console.warn('[NotionLite] Override rAF error:', e);
-            }
-
-            try {
-                if (typeof window.gc === 'function') {
-                    window.gc();
-                }
-            } catch (e) {}
-        };
-
-        const onForeground = () => {
-            if (!isBackgrounded) return;
-            isBackgrounded = false;
-            console.log('[NotionLite] Foreground mode restored: resuming full UI activity');
-
-            try {
-                if (originalRaf) {
-                    window.requestAnimationFrame = originalRaf;
-                }
-            } catch (e) {
-                console.warn('[NotionLite] Restore rAF error:', e);
-            }
-
-            renderTabs();
-        };
-
         // Global helper object
         window.NotionLite = {
             tabId: currentTabId,
@@ -1028,8 +966,6 @@
             openPreferences: openPreferencesModal,
             closePreferences: closePreferencesModal,
             refreshTabs: renderTabs,
-            onBackground: onBackground,
-            onForeground: onForeground,
             invoke: safeInvoke
         };
 
@@ -1037,17 +973,9 @@
         renderTabs();
         setTimeout(renderTabs, 500);
         setTimeout(renderTabs, 1500);
-        window.addEventListener('focus', () => {
-            onForeground();
-            renderTabs();
-        });
+        window.addEventListener('focus', renderTabs);
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                onBackground();
-            } else {
-                onForeground();
-                renderTabs();
-            }
+            if (!document.hidden) renderTabs();
         });
     }
 

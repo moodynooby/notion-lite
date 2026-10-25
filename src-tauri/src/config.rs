@@ -96,7 +96,7 @@ impl NotionConfig {
                             if !path.starts_with(&custom_themes_dir) {
                                 log::warn!("Custom CSS path '{}' is outside the designated custom themes directory. Discarding for security.", path.display());
                                 config.custom_css_path = None;
-                            } else if !path.extension().is_some_and(|ext| ext == "css") {
+                            } else if path.extension().is_none_or(|ext| ext != "css") {
                                 log::warn!("Custom CSS path '{}' does not have a .css extension. Discarding for security.", path.display());
                                 config.custom_css_path = None;
                             } else if !path.exists() {

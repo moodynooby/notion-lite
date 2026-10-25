@@ -67,6 +67,5 @@ fn show_main_window<R: Runtime>(app: &AppHandle<R>) {
         let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_focus();
-        crate::window_controller::on_window_foregrounded(app, "main");
     }
 }
