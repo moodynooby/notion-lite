@@ -77,9 +77,9 @@ impl AppState {
         }
 
         let key = get_encryption_key(app_secret);
-        let plaintext = serde_json::to_string(self)?;
+        let plaintext = serde_json::to_vec(self)?;
         let (ciphertext, nonce) =
-            encrypt_data(plaintext.as_bytes(), &key).map_err(Box::<dyn std::error::Error>::from)?;
+            encrypt_data(&plaintext, &key).map_err(Box::<dyn std::error::Error>::from)?;
 
         let encrypted_state = EncryptedState {
             data: general_purpose::STANDARD.encode(&ciphertext),
@@ -148,9 +148,8 @@ impl AppState {
                             });
 
                         match decrypt_res {
-                            Ok(plaintext_bytes) => match String::from_utf8(plaintext_bytes) {
-                                Ok(plaintext) => match serde_json::from_str::<AppState>(&plaintext)
-                                {
+                            Ok(plaintext_bytes) => {
+                                match serde_json::from_slice::<AppState>(&plaintext_bytes) {
                                     Ok(state) => {
                                         log::info!(
                                             "Encrypted AppState loaded from {}",
@@ -159,11 +158,8 @@ impl AppState {
                                         return Some(state);
                                     }
                                     Err(e) => log::warn!("Failed to parse decrypted state: {}", e),
-                                },
-                                Err(e) => {
-                                    log::warn!("Failed to convert decrypted bytes to string: {}", e)
                                 }
-                            },
+                            }
                             Err(e) => log::warn!("Failed to decrypt state file: {}", e),
                         }
                     }

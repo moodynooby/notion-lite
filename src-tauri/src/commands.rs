@@ -252,7 +252,6 @@ pub fn minimize_window(
     }
     if let Some(window) = app.get_window(&window_id) {
         let _ = window.minimize();
-        crate::window_controller::on_window_backgrounded(&app, &window_id);
     }
 }
 
