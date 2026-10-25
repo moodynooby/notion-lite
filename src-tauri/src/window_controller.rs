@@ -468,7 +468,12 @@ pub fn compact_process_memory() {
 
 #[cfg(test)]
 mod tests {
-    use super::{restored_title, restored_url};
+    use super::{compact_process_memory, restored_title, restored_url};
+
+    #[test]
+    fn test_compact_process_memory_runs_safely() {
+        compact_process_memory();
+    }
 
     #[test]
     fn restored_url_replaces_dead_pages_with_start_url() {

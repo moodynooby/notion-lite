@@ -6,6 +6,7 @@ pub trait TabOrchestrator<R: Runtime>: Send + Sync {
     fn register_hibernated_tab(&self, window_id: &str, tab_id: String, url: &str);
     fn set_app_handle(&self, app: AppHandle<R>);
     fn destroy_tab(&self, tab_id: &str) -> tauri::Result<()>;
+    fn hibernate_tab(&self, tab_id: &str) -> tauri::Result<bool>;
     fn show_tab(&self, tab_id: &str) -> tauri::Result<()>;
     fn get_tab_ids(&self) -> Vec<String>;
     fn inject_theme_into_tab(

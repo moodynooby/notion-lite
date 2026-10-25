@@ -21,6 +21,10 @@ impl<R: Runtime> TabOrchestrator<R> for TabManager<R> {
         self.destroy_tab(tab_id)
     }
 
+    fn hibernate_tab(&self, tab_id: &str) -> tauri::Result<bool> {
+        self.hibernate_tab(tab_id)
+    }
+
     fn show_tab(&self, tab_id: &str) -> tauri::Result<()> {
         self.show_tab(tab_id)
     }
@@ -64,10 +68,13 @@ impl<R: Runtime> TabOrchestrator<R> for TabManager<R> {
     }
 }
 
+pub const MAX_ACTIVE_WEBVIEWS: usize = 3;
+
 pub struct TabManager<R: Runtime> {
     pub tabs: RwLock<HashMap<String, Arc<TabController<R>>>>,
     pub hibernated_tabs: RwLock<HashMap<String, (String, String)>>,
     pub active_tab_id: RwLock<Option<String>>,
+    pub recent_active_tabs: RwLock<Vec<String>>,
     pub app_handle: RwLock<Option<AppHandle<R>>>,
 }
 
@@ -83,6 +90,7 @@ impl<R: Runtime> TabManager<R> {
             tabs: RwLock::new(HashMap::new()),
             hibernated_tabs: RwLock::new(HashMap::new()),
             active_tab_id: RwLock::new(None),
+            recent_active_tabs: RwLock::new(Vec::new()),
             app_handle: RwLock::new(None),
         }
     }
@@ -143,6 +151,52 @@ impl<R: Runtime> TabManager<R> {
         Ok(tab_id)
     }
 
+    pub fn hibernate_tab(&self, tab_id: &str) -> tauri::Result<bool> {
+        if let Ok(active_guard) = self.active_tab_id.read() {
+            if active_guard.as_deref() == Some(tab_id) {
+                return Ok(false);
+            }
+        }
+
+        let tab = {
+            let mut tabs = self
+                .tabs
+                .write()
+                .expect("TabManager: tabs write lock poisoned");
+            tabs.remove(tab_id)
+        };
+
+        if let Some(tab_controller) = tab {
+            let window_id = tab_controller.window_id.clone();
+            let url = tab_controller
+                .webview
+                .url()
+                .map(|u| u.to_string())
+                .unwrap_or_else(|_| "https://app.notion.com".to_string());
+
+            log::info!(
+                "TabManager: Hibernating inactive tab {} (url: {}) to reclaim RAM",
+                tab_id,
+                url
+            );
+
+            let _ = tab_controller.destroy();
+
+            self.register_hibernated_tab(&window_id, tab_id.to_string(), &url);
+
+            let mut recent = self
+                .recent_active_tabs
+                .write()
+                .expect("TabManager: recent_active_tabs write lock poisoned");
+            recent.retain(|id| id != tab_id);
+
+            crate::window_controller::compact_process_memory();
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
     pub fn show_tab(&self, tab_id: &str) -> tauri::Result<()> {
         // Check if tab needs to be awakened from hibernation
         let hibernated_info = self
@@ -178,6 +232,15 @@ impl<R: Runtime> TabManager<R> {
         *active_lock = Some(tab_id.to_string());
         drop(active_lock);
 
+        {
+            let mut recent = self
+                .recent_active_tabs
+                .write()
+                .expect("TabManager: recent_active_tabs write lock poisoned");
+            recent.retain(|id| id != tab_id);
+            recent.push(tab_id.to_string());
+        }
+
         let tabs = self
             .tabs
             .read()
@@ -194,8 +257,51 @@ impl<R: Runtime> TabManager<R> {
         if let Some(tab) = tabs.get(tab_id) {
             tab.show()?;
         }
+        drop(tabs);
+
+        // Auto-hibernate inactive background tabs if active webview count exceeds threshold
+        self.enforce_active_tab_limit(tab_id);
 
         Ok(())
+    }
+
+    fn enforce_active_tab_limit(&self, current_active_id: &str) {
+        loop {
+            let active_count = self
+                .tabs
+                .read()
+                .expect("TabManager: tabs read lock poisoned")
+                .len();
+
+            if active_count <= MAX_ACTIVE_WEBVIEWS {
+                break;
+            }
+
+            let candidate_to_hibernate = {
+                let recent = self
+                    .recent_active_tabs
+                    .read()
+                    .expect("TabManager: recent_active_tabs read lock poisoned");
+                let tabs = self
+                    .tabs
+                    .read()
+                    .expect("TabManager: tabs read lock poisoned");
+
+                // Pick the least recently used tab that is not current_active_id
+                recent
+                    .iter()
+                    .find(|&id| id != current_active_id && tabs.contains_key(id))
+                    .cloned()
+                    .or_else(|| tabs.keys().find(|&id| id != current_active_id).cloned())
+            };
+
+            if let Some(cand_id) = candidate_to_hibernate {
+                if let Ok(true) = self.hibernate_tab(&cand_id) {
+                    continue;
+                }
+            }
+            break;
+        }
     }
 
     pub fn destroy_tab(&self, tab_id: &str) -> tauri::Result<()> {
@@ -203,6 +309,14 @@ impl<R: Runtime> TabManager<R> {
             .write()
             .expect("TabManager: hibernated_tabs write lock poisoned")
             .remove(tab_id);
+
+        {
+            let mut recent = self
+                .recent_active_tabs
+                .write()
+                .expect("TabManager: recent_active_tabs write lock poisoned");
+            recent.retain(|id| id != tab_id);
+        }
 
         let mut active_lock = self
             .active_tab_id
@@ -220,6 +334,7 @@ impl<R: Runtime> TabManager<R> {
             .remove(tab_id)
         {
             tab.destroy()?;
+            crate::window_controller::compact_process_memory();
         }
         Ok(())
     }
@@ -244,5 +359,23 @@ mod tests {
         assert!(manager.destroy_tab(&tab_id).is_ok());
         let ids_after = manager.get_tab_ids();
         assert!(!ids_after.contains(&tab_id));
+    }
+
+    #[test]
+    fn test_cannot_hibernate_active_tab() {
+        let manager = TabManager::<tauri::Wry>::new();
+        let tab_id = "active-tab-1".to_string();
+
+        *manager.active_tab_id.write().unwrap() = Some(tab_id.clone());
+
+        let res = manager.hibernate_tab(&tab_id);
+        assert!(!res.unwrap());
+    }
+
+    #[test]
+    fn test_hibernate_untracked_tab_returns_false() {
+        let manager = TabManager::<tauri::Wry>::new();
+        let res = manager.hibernate_tab("non-existent-tab");
+        assert!(!res.unwrap());
     }
 }
