@@ -127,6 +127,7 @@ impl<R: Runtime> WindowController<R> {
                 let app_state = app_state_lock.read().expect("AppState read lock poisoned");
                 crate::state::persist_state_now(&app_handle, &app_state);
                 let _ = window_clone.hide();
+                on_window_backgrounded(&app_handle, &window_label);
             }
             tauri::WindowEvent::Focused(focused) => {
                 log::debug!("Window {} focused: {}", window_label, focused);
@@ -137,13 +138,31 @@ impl<R: Runtime> WindowController<R> {
                     .expect("AppState write lock poisoned");
                 if *focused {
                     app_state.focused_window_id = Some(window_label.clone());
-                }
-                if let Some(w_state) = app_state.windows.get_mut(&window_label) {
-                    w_state.is_focused = *focused;
+                    if let Some(w_state) = app_state.windows.get_mut(&window_label) {
+                        w_state.is_focused = true;
+                        w_state.is_minimized = false;
+                    }
+                    drop(app_state);
+                    on_window_foregrounded(&app_handle, &window_label);
+                } else {
+                    let is_minimized = window_clone.is_minimized().unwrap_or(false);
+                    let is_visible = window_clone.is_visible().unwrap_or(true);
+                    if let Some(w_state) = app_state.windows.get_mut(&window_label) {
+                        w_state.is_focused = false;
+                        w_state.is_minimized = is_minimized || !is_visible;
+                    }
+                    drop(app_state);
+                    if is_minimized || !is_visible {
+                        on_window_backgrounded(&app_handle, &window_label);
+                    }
                 }
             }
             tauri::WindowEvent::Resized(size) => {
                 log::debug!("Window {} resized to {:?}", window_label, size);
+                let is_minimized = window_clone.is_minimized().unwrap_or(false);
+                if is_minimized {
+                    on_window_backgrounded(&app_handle, &window_label);
+                }
                 if let Some(app_state_lock) =
                     app_handle.try_state::<Arc<std::sync::RwLock<crate::state::AppState>>>()
                 {
@@ -151,6 +170,7 @@ impl<R: Runtime> WindowController<R> {
                         if let Some(w_state) = app_state.windows.get_mut(&window_label) {
                             w_state.bounds.width = size.width as f64;
                             w_state.bounds.height = size.height as f64;
+                            w_state.is_minimized = is_minimized;
                         }
                     }
                 }
@@ -372,6 +392,77 @@ fn restored_title(saved_title: &str) -> String {
         "Notion".to_string()
     } else {
         saved_title.to_string()
+    }
+}
+
+/// Invoked when a window is minimized or hidden to the system tray.
+/// Suspends heavy UI/rendering JS execution in webviews and compacts OS heap RAM.
+pub fn on_window_backgrounded<R: Runtime>(app_handle: &AppHandle<R>, window_label: &str) {
+    log::info!(
+        "Window {} backgrounded (minimized/hidden) - applying RAM compaction & CPU throttling",
+        window_label
+    );
+
+    if let Some(app_state_lock) =
+        app_handle.try_state::<Arc<std::sync::RwLock<crate::state::AppState>>>()
+    {
+        if let Ok(mut app_state) = app_state_lock.inner().write() {
+            if let Some(w_state) = app_state.windows.get_mut(window_label) {
+                w_state.is_minimized = true;
+            }
+        }
+    }
+
+    if let Some(w) = app_handle.get_window(window_label) {
+        let script = "if (window.NotionLite && window.NotionLite.onBackground) window.NotionLite.onBackground();";
+        for wv in w.webviews() {
+            let _ = wv.eval(script);
+        }
+    }
+
+    compact_process_memory();
+}
+
+/// Invoked when a window is unminimized, restored, or brought to focus.
+/// Instantly resumes normal webview execution without reloading content.
+pub fn on_window_foregrounded<R: Runtime>(app_handle: &AppHandle<R>, window_label: &str) {
+    log::info!(
+        "Window {} foregrounded (restored/shown) - resuming full activity",
+        window_label
+    );
+
+    if let Some(app_state_lock) =
+        app_handle.try_state::<Arc<std::sync::RwLock<crate::state::AppState>>>()
+    {
+        if let Ok(mut app_state) = app_state_lock.inner().write() {
+            if let Some(w_state) = app_state.windows.get_mut(window_label) {
+                w_state.is_minimized = false;
+            }
+        }
+    }
+
+    if let Some(w) = app_handle.get_window(window_label) {
+        let script = "if (window.NotionLite && window.NotionLite.onForeground) window.NotionLite.onForeground();";
+        for wv in w.webviews() {
+            let _ = wv.eval(script);
+        }
+    }
+}
+
+/// Compacts process heap memory when going to background.
+pub fn compact_process_memory() {
+    #[cfg(target_os = "linux")]
+    {
+        unsafe {
+            extern "C" {
+                fn malloc_trim(pad: usize) -> std::os::raw::c_int;
+            }
+            let trimmed = malloc_trim(0);
+            log::debug!(
+                "RAM compaction (malloc_trim): freed unused heap memory chunks (result={})",
+                trimmed
+            );
+        }
     }
 }
 
