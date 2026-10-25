@@ -231,7 +231,7 @@ pub fn create_secure_webview_builder<R: Runtime>(
                                             is_pinned: false,
                                         },
                                     );
-                                    crate::state::persist_state(&nav_app, &app_state);
+                                    crate::state::persist_state(&nav_app);
                                 }
 
                                 let _ = orchestrator.inner().show_tab(&new_id);
@@ -271,7 +271,7 @@ pub fn create_secure_webview_builder<R: Runtime>(
                                         break;
                                     }
                                 }
-                                crate::state::persist_state(&nav_app, &app_state);
+                                crate::state::persist_state(&nav_app);
                             }
                             if let Some(w) = nav_app.get_window(window_id) {
                                 if let Some(ref act_id) = new_active_id {
@@ -299,7 +299,7 @@ pub fn create_secure_webview_builder<R: Runtime>(
                                 for (id, t) in app_state.tabs.iter_mut() {
                                     t.is_active = id == tab_id_to_switch;
                                 }
-                                crate::state::persist_state(&nav_app, &app_state);
+                                crate::state::persist_state(&nav_app);
                             }
                             if let Some(w) = nav_app.get_window(window_id) {
                                 if let Some(wv) = w.get_webview(tab_id_to_switch) {

@@ -105,7 +105,7 @@ impl<R: Runtime> WindowController<R> {
                     active_tab_id: None,
                 },
             );
-            crate::state::persist_state(app, &app_state);
+            crate::state::persist_state(app);
         }
 
         Ok(Self { window })
@@ -315,7 +315,7 @@ impl<R: Runtime> WindowController<R> {
                     },
                 );
             }
-            crate::state::persist_state(app, &app_state);
+            crate::state::persist_state(app);
             active
         };
 
@@ -338,7 +338,7 @@ impl<R: Runtime> WindowController<R> {
                 app_state.tabs.remove(&id);
             }
         }
-        crate::state::persist_state(app, &app_state);
+        crate::state::persist_state(app);
     }
 
     fn create_initial_tab(
@@ -369,7 +369,7 @@ impl<R: Runtime> WindowController<R> {
                 is_pinned: false,
             },
         );
-        crate::state::persist_state(app, &app_state);
+        crate::state::persist_state(app);
         let _ = tab_manager.show_tab(&tab_id);
         Ok(())
     }
