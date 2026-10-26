@@ -11,12 +11,18 @@ pub fn is_notion_host(host: &str) -> bool {
         || host.ends_with(".notion.com")
 }
 
+/// Helper to securely check if `host` is either exactly `domain` or a subdomain of it,
+/// without allocating any new strings in the hot path.
+fn is_subdomain(host: &str, domain: &str) -> bool {
+    host == domain
+        || (host.ends_with(domain)
+            && host.as_bytes().get(host.len() - domain.len() - 1) == Some(&b'.'))
+}
+
 /// True when `host` is an approved OAuth login provider.
 pub fn is_trusted_oauth_host(host: &str) -> bool {
     let trusted = ["accounts.google.com", "appleid.apple.com"];
-    trusted
-        .iter()
-        .any(|t| host == *t || host.ends_with(&format!(".{}", t)))
+    trusted.iter().any(|t| is_subdomain(host, t))
 }
 
 #[derive(Default)]
@@ -87,10 +93,7 @@ impl PolicyEnforcer for PolicyManager {
                     "mixpanel.com",
                     "segment.com",
                 ];
-                if trackers
-                    .iter()
-                    .any(|t| host == *t || host.ends_with(&format!(".{}", t)))
-                {
+                if trackers.iter().any(|t| is_subdomain(host, t)) {
                     log::warn!("PolicyManager: BLOCKED tracker/telemetry domain: {}", host);
                     return false;
                 }

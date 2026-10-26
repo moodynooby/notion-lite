@@ -8,3 +8,7 @@
 ## 2025-05-18 - [Webview Tab Hibernation & Memory Compaction]
 **Learning:** Holding inactive child Webview instances alive indefinitely in multi-tab desktop clients consumes hundreds of megabytes per tab (~5GB for 10 tabs). Furthermore, C/C++ memory allocators like glibc malloc do not automatically return freed heap chunks to the OS without explicit compaction calls.
 **Action:** Cap active live webviews in `TabManager` (e.g., MAX_ACTIVE_WEBVIEWS = 3) and auto-hibernate LRU background tabs into saved state metadata. Invoke `compact_process_memory()` (`malloc_trim(0)`) on tab closure, switch, or hibernation to immediately reclaim unmapped heap memory back to the OS. Disconnect DOM MutationObservers and background timers in injected scripts (`tab_ui.js`) when webviews are backgrounded.
+
+## 2025-05-18 - [Optimization Without Allocation]
+**Learning:** `format!` inside hot loops (like iterator `.any()`) causes heap allocation overhead. In `policy.rs` URL checking paths, computing `format!(".{}", domain)` during every `ends_with` check created unnecessary overhead in an O(n) context that is evaluated on every network request.
+**Action:** Replace `ends_with(&format!(".{}", domain))` with an allocation-free array bound check `(host.ends_with(domain) && host.as_bytes().get(host.len() - domain.len() - 1) == Some(&b'.'))`. This computes the same sub-domain validation check without generating a new `String` on the heap.

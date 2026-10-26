@@ -408,3 +408,19 @@ mod tests {
         assert_eq!(restored_title("My Page"), "My Page");
     }
 }
+
+/// Explicitly trigger a heap compaction to release unmapped memory to the OS.
+/// This prevents memory fragmentation and runaway usage after tab destruction.
+pub fn compact_process_memory() {
+    #[cfg(target_os = "linux")]
+    {
+        extern "C" {
+            fn malloc_trim(pad: usize) -> i32;
+        }
+        unsafe {
+            // Reclaim any unmapped heap chunks above 0 bytes padding back to the OS
+            malloc_trim(0);
+        }
+        log::debug!("WindowController: malloc_trim(0) triggered heap compaction");
+    }
+}
