@@ -43,7 +43,7 @@ fi
     for arch in "${ARCHS[@]}"; do
         target_dir="dists/${SUITE}/${COMPONENT}/binary-${arch}"
         mkdir -p "$target_dir"
-        
+
         echo "Scanning packages for ${arch}..."
         dpkg-scanpackages --multiversion --arch "$arch" "pool/${COMPONENT}" /dev/null > "${target_dir}/Packages"
         gzip -k -f -9 "${target_dir}/Packages"

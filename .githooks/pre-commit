@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Notion Lite Native Git Pre-commit Hook
+
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+cd "${PROJECT_ROOT}"
+
+echo "==> Running Notion Lite pre-commit checks..."
+
+# 1. Rust formatting
+echo "Checking Rust formatting (cargo fmt)..."
+if ! (cd src-tauri && cargo fmt --all -- --check); then
+    echo "✗ Rust code is not formatted according to rustfmt standard."
+    echo "  Run: cd src-tauri && cargo fmt"
+    exit 1
+fi
+
+# 2. Project integrity & hygiene
+if ! ./scripts/check-integrity.sh; then
+    echo "✗ Project integrity checks failed."
+    exit 1
+fi
+
+echo "✓ Pre-commit checks passed successfully!"
+exit 0

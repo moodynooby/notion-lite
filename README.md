@@ -165,13 +165,15 @@ sudo apt-get install -y \
   build-essential curl wget file \
   libxdo-dev libssl-dev \
   libayatana-appindicator3-dev \
-  librsvg2-dev
+  librsvg2-dev \
+  libhunspell-dev \
+  libclang-dev clang llvm
 ```
 
-**macOS:**  
+**macOS:**
 Xcode Command Line Tools are sufficient. No extra dependencies required.
 
-**Windows:**  
+**Windows:**
 No extra prerequisites required (dependencies are bundled).
 
 **All platforms:**
@@ -198,6 +200,30 @@ Packaged bundles will be output to `src-tauri/target/release/bundle/`.
 ```bash
 cd src-tauri
 cargo tauri dev
+```
+
+### Pre-Commit Hooks & Quality Checks
+
+To ensure code quality, formatting, and project integrity, configure pre-commit hooks before contributing:
+
+```bash
+# Setup zero-dependency native Git hooks
+./scripts/setup-hooks.sh native
+
+# Or setup the Python pre-commit framework (if you use pre-commit / uv)
+./scripts/setup-hooks.sh pre-commit
+```
+
+You can manually execute quality gates at any time:
+```bash
+# Fast integrity & syntax check (< 2s)
+./scripts/check-integrity.sh
+
+# Check Rust code formatting
+cd src-tauri && cargo fmt --all -- --check
+
+# Full test & compilation check
+./scripts/check-all.sh
 ```
 
 ---

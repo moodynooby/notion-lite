@@ -1,0 +1,45 @@
+# Notion Lite Pre-commit Configuration
+# See https://pre-commit.com for more information
+
+default_stages: [pre-commit]
+fail_fast: false
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=2000']
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: Rust Format (cargo fmt)
+        description: Ensure all Rust source files adhere to rustfmt
+        entry: bash -c "cd src-tauri && cargo fmt --all -- --check"
+        language: system
+        files: \.rs$
+        pass_filenames: false
+
+      - id: project-integrity
+        name: Project Integrity & Parity
+        description: Verify asset presence, version parity, and configurations
+        entry: ./scripts/check-integrity.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: bash-syntax
+        name: Shell Script Syntax (bash -n)
+        description: Verify shell scripts syntax
+        entry: bash -n
+        language: system
+        types: [shell]

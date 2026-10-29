@@ -649,7 +649,7 @@ jobs:
           VERSION="${{ steps.tag.outputs.version }}"
           VERSION_CLEAN="${VERSION#v}"
           REPO_URL="https://github.com/${{ github.repository }}/releases/download/${VERSION}"
-          
+
           # Find assets (AppImage for Linux, .app.tar.gz for macOS, .exe for Windows)
           LINUX_ASSET=$(find release-assets -name "*.AppImage" -printf "%f\n" | head -1)
           MACOS_X64_ASSET=$(find release-assets -name "*macos-x64.app.tar.gz" -printf "%f\n" | head -1)
