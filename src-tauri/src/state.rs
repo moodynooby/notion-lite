@@ -85,7 +85,9 @@ impl AppState {
             data: general_purpose::STANDARD.encode(&ciphertext),
             nonce: general_purpose::STANDARD.encode(&nonce),
         };
-        let json = serde_json::to_string(&encrypted_state)?;
+        // ⚡ Bolt: Use to_vec instead of to_string to skip UTF-8 validation and string allocation
+        // Expected impact: Eliminates a temporary string allocation on every state save.
+        let json = serde_json::to_vec(&encrypted_state)?;
 
         std::fs::write(&path, json)?;
         log::info!("Encrypted AppState saved to {}", path.display());

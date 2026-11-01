@@ -5,10 +5,7 @@ use crate::traits::PolicyEnforcer;
 /// This is the single definition used by navigation policy, start-URL
 /// validation, and IPC origin checks so the three cannot drift apart.
 pub fn is_notion_host(host: &str) -> bool {
-    host == "notion.so"
-        || host.ends_with(".notion.so")
-        || host == "notion.com"
-        || host.ends_with(".notion.com")
+    is_subdomain(host, "notion.so") || is_subdomain(host, "notion.com")
 }
 
 /// Helper to securely check if `host` is either exactly `domain` or a subdomain of it,
