@@ -30,19 +30,23 @@ impl<R: Runtime> TabOrchestrator<R> for TabManager<R> {
     }
 
     fn get_tab_ids(&self) -> Vec<String> {
-        let mut ids: Vec<String> = self
+        let tabs = self
             .tabs
             .read()
-            .expect("TabManager: tabs read lock poisoned")
-            .keys()
-            .cloned()
-            .collect();
+            .expect("TabManager: tabs read lock poisoned");
         let hibernated = self
             .hibernated_tabs
             .read()
             .expect("TabManager: hibernated_tabs read lock poisoned");
+
+        // Performance optimization:
+        // 1. Pre-allocate to avoid re-allocations
+        // 2. Use tabs.contains_key (O(1)) instead of ids.contains (O(n)) which caused O(n^2) scaling
+        let mut ids: Vec<String> = Vec::with_capacity(tabs.len() + hibernated.len());
+        ids.extend(tabs.keys().cloned());
+
         for k in hibernated.keys() {
-            if !ids.contains(k) {
+            if !tabs.contains_key(k) {
                 ids.push(k.clone());
             }
         }

@@ -12,3 +12,7 @@
 ## 2025-05-18 - [Optimization Without Allocation]
 **Learning:** `format!` inside hot loops (like iterator `.any()`) causes heap allocation overhead. In `policy.rs` URL checking paths, computing `format!(".{}", domain)` during every `ends_with` check created unnecessary overhead in an O(n) context that is evaluated on every network request.
 **Action:** Replace `ends_with(&format!(".{}", domain))` with an allocation-free array bound check `(host.ends_with(domain) && host.as_bytes().get(host.len() - domain.len() - 1) == Some(&b'.'))`. This computes the same sub-domain validation check without generating a new `String` on the heap.
+
+## 2025-05-18 - [O(n^2) scaling from vector contains]
+**Learning:** Using `.contains()` on a vector inside a loop results in O(n^2) time complexity. When scaling to many tabs (e.g. hibernation features), this causes significant latency.
+**Action:** Always pre-allocate the capacity when building collections, and use `contains_key()` from `HashMap` (O(1)) instead of `.contains()` (O(n)) from a `Vec` for set-like inclusion checks.
