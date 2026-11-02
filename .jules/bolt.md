@@ -16,3 +16,7 @@
 ## 2025-05-18 - [O(n^2) scaling from vector contains]
 **Learning:** Using `.contains()` on a vector inside a loop results in O(n^2) time complexity. When scaling to many tabs (e.g. hibernation features), this causes significant latency.
 **Action:** Always pre-allocate the capacity when building collections, and use `contains_key()` from `HashMap` (O(1)) instead of `.contains()` (O(n)) from a `Vec` for set-like inclusion checks.
+
+## 2023-11-04 - [Deserialize State from slice instead of string]
+**Learning:** `serde_json::from_str` forces the JSON bytes to be parsed as a UTF-8 valid string. However, it's possible to parse JSON from a slice of bytes directly using `serde_json::from_slice`.
+**Action:** When reading bytes from a file, use `serde_json::from_slice` directly instead of converting the bytes to string and then using `from_str`.
