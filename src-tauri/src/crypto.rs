@@ -3,8 +3,7 @@ use aes_gcm::{
     Aes256Gcm, Key, Nonce,
 };
 use pbkdf2::pbkdf2_hmac;
-use rand::rngs::StdRng;
-use rand_core::{RngCore, SeedableRng};
+use rand_core::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::path::PathBuf;
@@ -46,14 +45,16 @@ pub(crate) fn encrypt_data(
     key: &Key<Aes256Gcm>,
 ) -> Result<(Vec<u8>, Vec<u8>), String> {
     let cipher = Aes256Gcm::new(key);
-    let mut rng = StdRng::from_entropy();
-    let mut nonce_bytes = vec![0u8; 12]; // GCM nonces are 12 bytes
-    rng.fill_bytes(&mut nonce_bytes);
+    let mut nonce_bytes = [0u8; 12]; // GCM nonces are 12 bytes
+                                     // ⚡ Bolt: Use thread_rng() instead of StdRng::from_entropy() for much faster secure random generation
+                                     // Expected impact: Speeds up encryption by avoiding an expensive entropy pull from the OS on every save
+    rand::thread_rng().fill_bytes(&mut nonce_bytes);
     let nonce = Nonce::from_slice(&nonce_bytes);
 
     cipher
         .encrypt(nonce, data)
-        .map(|cipher_text| (cipher_text, nonce_bytes))
+        // ⚡ Bolt: Avoid initial Vec allocation by using a stack array for generation, then convert to Vec here
+        .map(|cipher_text| (cipher_text, nonce_bytes.to_vec()))
         .map_err(|e| format!("Encryption error: {:?}", e))
 }
 
