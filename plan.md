@@ -1,0 +1,5 @@
+1. **Identify Bottleneck**: In `src-tauri/src/crypto.rs`, the `encrypt_data` function uses `StdRng::from_entropy()` to generate a nonce. Creating a new `StdRng` instance via `from_entropy()` repeatedly (e.g. every time `save_to_disk` is called) is slow as it fetches entropy from the OS.
+2. **Optimize**: Replace `StdRng::from_entropy()` with `rand::thread_rng()` in `encrypt_data` to significantly speed up random nonce generation while maintaining cryptographic security (as `thread_rng` is cryptographically secure and automatically seeded/reseeded). We can also use an array `[0u8; 12]` instead of a `Vec` for the nonce creation, then returning it as a `Vec` using `.to_vec()` to avoid initial heap allocation before `Nonce::from_slice`.
+3. **Verify**: Run `cargo fmt`, `cargo clippy`, and `cargo test` in `src-tauri`.
+4. **Pre-commit Instructions**: Run the pre-commit checks as directed by `pre_commit_instructions` to ensure PR quality and reflections.
+5. **Submit**: Create PR with title "⚡ Bolt: [performance improvement]" detailing What, Why, Impact, and Measurement.

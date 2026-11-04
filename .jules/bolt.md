@@ -16,3 +16,7 @@
 ## 2025-05-18 - [O(n^2) scaling from vector contains]
 **Learning:** Using `.contains()` on a vector inside a loop results in O(n^2) time complexity. When scaling to many tabs (e.g. hibernation features), this causes significant latency.
 **Action:** Always pre-allocate the capacity when building collections, and use `contains_key()` from `HashMap` (O(1)) instead of `.contains()` (O(n)) from a `Vec` for set-like inclusion checks.
+
+## 2025-05-18 - [Fast secure random nonces]
+**Learning:** `StdRng::from_entropy()` requests entropy directly from the OS on every call, which creates a large performance bottleneck when invoked frequently (like encrypting state on every save). `rand::thread_rng()` is also cryptographically secure but avoids the OS call overhead for every generation by relying on an automatically re-seeded thread-local CSPRNG.
+**Action:** Replace `StdRng::from_entropy()` with `rand::thread_rng()` for generating fast, cryptographically secure nonces and keys. Avoid vector allocations by using stack arrays `[0u8; N]` when initially creating random buffers.
