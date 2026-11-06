@@ -29,7 +29,10 @@ notion-lite/
 │   ├── check-integrity.sh      # Project hygiene & integrity checker
 │   ├── check-all.sh            # Full QA runner (fmt, integrity, clippy, test)
 │   ├── setup-hooks.sh          # Git pre-commit hooks setup script
-│   └── build-deb.sh            # Debian package builder
+│   ├── build-deb.sh            # Debian package builder
+│   └── build-rpm.sh            # RPM bundle builder
+├── packaging/
+│   └── arch/PKGBUILD           # Arch Linux package recipe
 ├── .githooks/                  # Native git hooks (zero-dependency)
 ├── .github/workflows/          # CI/CD pipelines (ci.yml, integrity.yml, release.yml)
 ├── docs/                       # Architecture decisions and security manifesto
@@ -127,6 +130,12 @@ cd src-tauri && cargo tauri build
 
 # Package Debian deb
 ./scripts/build-deb.sh
+
+# Package RPM
+./scripts/build-rpm.sh
+
+# Build Arch Linux package
+cd packaging/arch && makepkg -si
 ```
 
 ---

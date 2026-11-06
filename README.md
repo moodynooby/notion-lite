@@ -78,9 +78,30 @@ sudo apt install ./notion-lite_*.deb
 
 ### Fedora / RHEL
 
+Build an RPM from source (requires the Rust and Tauri build prerequisites below):
+
+```bash
+./scripts/build-rpm.sh
+```
+
+The versioned RPM and `notion-lite.rpm` alias are written to `dist/`. The latest
+release also provides a prebuilt RPM:
+
 ```bash
 sudo rpm -i notion-lite-*.rpm
 ```
+
+### Arch Linux
+
+Build and install an Arch package from the checked-out source:
+
+```bash
+cd packaging/arch
+makepkg -si
+```
+
+`makepkg` fetches the matching version tag and installs its declared build and
+runtime dependencies.
 
 ### AppImage (any Linux)
 
@@ -158,7 +179,7 @@ What that means in practice for Notion Lite:
 
 ### Prerequisites
 
-**Linux:**
+**Linux (Debian / Ubuntu):**
 ```bash
 sudo apt-get install -y \
   libwebkit2gtk-4.1-dev \
@@ -298,7 +319,7 @@ The project uses GitHub Actions to build and release on every tagged version (`v
 - macOS aarch64 (Apple Silicon) → `.dmg`
 - Windows x86_64 → `.exe` (NSIS)
 
-See [`.github/workflows/release.yml`](.github/workflows/release.yml) for the full pipeline definition.
+See [`.github/workflows/release.yml`](.github/workflows/release.yml) for the full pipeline definition. Arch Linux users can build from the maintained [`PKGBUILD`](packaging/arch/PKGBUILD).
 
 ---
 
