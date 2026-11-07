@@ -16,3 +16,7 @@
 ## 2025-05-18 - [O(n^2) scaling from vector contains]
 **Learning:** Using `.contains()` on a vector inside a loop results in O(n^2) time complexity. When scaling to many tabs (e.g. hibernation features), this causes significant latency.
 **Action:** Always pre-allocate the capacity when building collections, and use `contains_key()` from `HashMap` (O(1)) instead of `.contains()` (O(n)) from a `Vec` for set-like inclusion checks.
+
+## 2026-10-25 - Efficient Parsing of AppState
+**Learning:** `serde_json::from_str` and `std::fs::read_to_string` introduces unnecessary allocations and overhead compared to `serde_json::from_slice` and `std::fs::read` when loading state data for decryption.
+**Action:** Used `serde_json::from_slice` and `std::fs::read` for loading `AppState` in `load_from_disk` to reduce string allocations.
