@@ -69,9 +69,10 @@ impl I18nManager {
             if let Ok(entries) = fs::read_dir(dir) {
                 for entry in entries.flatten() {
                     if entry.path().extension().and_then(|s| s.to_str()) == Some("json") {
-                        if let Ok(content) = fs::read_to_string(entry.path()) {
+                        // ⚡ Bolt: Use fs::read and from_slice to skip UTF-8 validation and string allocation overhead
+                        if let Ok(content) = fs::read(entry.path()) {
                             if let Ok(json) =
-                                serde_json::from_str::<HashMap<String, Value>>(&content)
+                                serde_json::from_slice::<HashMap<String, Value>>(&content)
                             {
                                 let mut tr = self
                                     .translations
