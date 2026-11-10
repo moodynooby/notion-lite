@@ -16,3 +16,7 @@
 ## 2025-05-18 - [O(n^2) scaling from vector contains]
 **Learning:** Using `.contains()` on a vector inside a loop results in O(n^2) time complexity. When scaling to many tabs (e.g. hibernation features), this causes significant latency.
 **Action:** Always pre-allocate the capacity when building collections, and use `contains_key()` from `HashMap` (O(1)) instead of `.contains()` (O(n)) from a `Vec` for set-like inclusion checks.
+
+## 2024-11-10 - Rust JSON Serialization Overhead
+**Learning:** For optimal performance in Rust components reading files to deserialize as JSON, `std::fs::read_to_string` followed by `serde_json::from_str` forces unnecessary UTF-8 validation and an intermediate memory allocation. `std::fs::read` and `serde_json::from_slice` parses directly from raw bytes.
+**Action:** Always prefer `serde_json::from_slice` and `serde_json::to_vec` alongside byte-level file operations (`std::fs::read`) instead of their string counterparts to avoid overhead.

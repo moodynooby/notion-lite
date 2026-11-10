@@ -65,9 +65,11 @@ mod stress_tests {
         }
 
         // Test serialization performance/stability
-        let json = serde_json::to_string(&app_state).expect("Failed to serialize large state");
+        // ⚡ Bolt: Use to_vec and from_slice instead of to_string and from_str
+        // Expected impact: Eliminates UTF-8 validation and temporary string allocation on state serialization.
+        let json = serde_json::to_vec(&app_state).expect("Failed to serialize large state");
         let decoded: AppState =
-            serde_json::from_str(&json).expect("Failed to deserialize large state");
+            serde_json::from_slice(&json).expect("Failed to deserialize large state");
 
         assert_eq!(decoded.windows.len(), 100);
         assert_eq!(decoded.tabs.len(), 1000);

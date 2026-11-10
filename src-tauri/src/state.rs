@@ -116,10 +116,13 @@ impl AppState {
 
         if path.exists() {
             let key = get_encryption_key(app_secret);
-            match std::fs::read_to_string(&path) {
+            // ⚡ Bolt: Use read instead of read_to_string, and from_slice instead of from_str
+            // Expected impact: Eliminates UTF-8 validation and temporary string allocation on every state load.
+            match std::fs::read(&path) {
                 Ok(contents) => {
                     // Try to load as encrypted state first
-                    if let Ok(encrypted_state) = serde_json::from_str::<EncryptedState>(&contents) {
+                    if let Ok(encrypted_state) = serde_json::from_slice::<EncryptedState>(&contents)
+                    {
                         let decoded_data =
                             match general_purpose::STANDARD.decode(&encrypted_state.data) {
                                 Ok(d) => d,
@@ -167,7 +170,7 @@ impl AppState {
                     }
 
                     // If encrypted load failed, try to load as plaintext (for backward compatibility)
-                    if let Ok(state) = serde_json::from_str::<AppState>(&contents) {
+                    if let Ok(state) = serde_json::from_slice::<AppState>(&contents) {
                         log::warn!(
                             "Loaded unencrypted AppState from {}. Please re-save to encrypt.",
                             path.display()
